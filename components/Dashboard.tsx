@@ -90,6 +90,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [editSessionEnd, setEditSessionEnd] = useState('');
   const [editSessionTaskId, setEditSessionTaskId] = useState('');
 
+  // Quick Task Link Edit
+  const [editingTaskLinkSessionId, setEditingTaskLinkSessionId] = useState<string | null>(null);
+
   // Goal Editing State
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [editGoalTitle, setEditGoalTitle] = useState('');
@@ -573,16 +576,38 @@ const Dashboard: React.FC<DashboardProps> = ({
             {showColorPicker && (
               <>
                 <div className="fixed inset-0 z-0" onClick={() => setShowColorPicker(false)} />
-                <div className="absolute bottom-full right-0 mb-2 p-2 bg-white rounded-xl shadow-xl border border-slate-100 grid grid-cols-3 gap-1 z-10 w-24 animate-in fade-in zoom-in-95 duration-200">
-                  {MORANDI_COLORS.map(c => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => { setNewGoalColor(c); setShowColorPicker(false); }}
-                      style={{ backgroundColor: c }}
-                      className="w-6 h-6 rounded-full hover:scale-110 transition-transform"
+                <div className="absolute bottom-full right-0 mb-2 p-3 bg-white rounded-xl shadow-xl border border-slate-100 z-10 w-40 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="grid grid-cols-4 gap-1 mb-2">
+                    {MORANDI_COLORS.map(c => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => { setNewGoalColor(c); setShowColorPicker(false); }}
+                        style={{ backgroundColor: c }}
+                        className="w-7 h-7 rounded-full hover:scale-110 transition-transform"
+                      />
+                    ))}
+                  </div>
+                  <div className="border-t border-slate-100 pt-2 mt-1">
+                    <label className="text-[10px] text-slate-500 mb-1 block">自定义颜色</label>
+                    <input
+                      type="text"
+                      placeholder="#RRGGBB"
+                      className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const value = e.currentTarget.value.trim();
+                          if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                            setNewGoalColor(value);
+                            setShowColorPicker(false);
+                          }
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
                     />
-                  ))}
+                    <p className="text-[9px] text-slate-400 mt-0.5">回车确认</p>
+                  </div>
                 </div>
               </>
             )}
@@ -704,16 +729,40 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 <div>
                   <label className="block text-sm text-slate-600 mb-1">关联待办 (可选)</label>
-                  <select
-                    className={`w-full border border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-900 focus:outline-none focus:border-${theme.primary}-500`}
-                    value={manualLogTaskId}
-                    onChange={(e) => setManualLogTaskId(e.target.value)}
-                  >
-                    <option value="">-- 无关联 --</option>
-                    {tasks.filter(t => !t.completed).map(t => (
-                      <option key={t.id} value={t.id}>{t.title}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setManualLogTaskId(manualLogTaskId ? '' : 'SHOW_SELECT')}
+                      className="w-full text-left border border-slate-200 rounded-xl p-2.5 bg-white text-slate-900 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all hover:border-slate-300 flex items-center justify-between"
+                    >
+                      <span>{manualLogTaskId && manualLogTaskId !== 'SHOW_SELECT' ? tasks.find(t => t.id === manualLogTaskId)?.title : '-- 无关联 --'}</span>
+                      <ChevronDown size={18} className="text-slate-400" />
+                    </button>
+                    {manualLogTaskId === 'SHOW_SELECT' && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setManualLogTaskId('')} />
+                        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto custom-scrollbar">
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm text-slate-500 border-b border-slate-100"
+                            onClick={() => setManualLogTaskId('')}
+                          >
+                            -- 无关联 --
+                          </button>
+                          {tasks.filter(t => !t.completed).map(t => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm text-slate-700 border-b border-slate-100 last:border-b-0 transition-colors"
+                              onClick={() => setManualLogTaskId(t.id)}
+                            >
+                              {t.title}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
                   <button type="button" onClick={() => setShowAddLog(false)} className="px-3 py-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">取消</button>
@@ -792,16 +841,40 @@ const Dashboard: React.FC<DashboardProps> = ({
 
                 <div>
                   <label className="block text-sm text-slate-600 mb-1">关联待办</label>
-                  <select
-                    className={`w-full border border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-900 focus:outline-none focus:border-${theme.primary}-500`}
-                    value={editSessionTaskId}
-                    onChange={(e) => setEditSessionTaskId(e.target.value)}
-                  >
-                    <option value="">-- 无关联 --</option>
-                    {tasks.map(t => (
-                      <option key={t.id} value={t.id}>{t.title}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setEditSessionTaskId(editSessionTaskId ? '' : 'SHOW_SELECT')}
+                      className="w-full text-left border border-slate-200 rounded-xl p-2.5 bg-white text-slate-900 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all hover:border-slate-300 flex items-center justify-between"
+                    >
+                      <span>{editSessionTaskId && editSessionTaskId !== 'SHOW_SELECT' ? tasks.find(t => t.id === editSessionTaskId)?.title : '-- 无关联 --'}</span>
+                      <ChevronDown size={18} className="text-slate-400" />
+                    </button>
+                    {editSessionTaskId === 'SHOW_SELECT' && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setEditSessionTaskId('')} />
+                        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto custom-scrollbar">
+                          <button
+                            type="button"
+                            className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm text-slate-500 border-b border-slate-100"
+                            onClick={() => setEditSessionTaskId('')}
+                          >
+                            -- 无关联 --
+                          </button>
+                          {tasks.filter(t => !t.completed).map(t => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm text-slate-700 border-b border-slate-100 last:border-b-0 transition-colors"
+                              onClick={() => setEditSessionTaskId(t.id)}
+                            >
+                              {t.title}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-4">
                   <button type="button" onClick={() => setEditingSession(null)} className="px-3 py-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">取消</button>
@@ -862,6 +935,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
                             <Moon size={12} className="mr-1" /> 晚安
                           </span>
+                        ) : session.type === 'checkin' ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                            <CheckCircle size={12} className="mr-1" /> 打卡
+                          </span>
                         ) : (
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${theme.primary}-50 text-${theme.primary}-700`}>
                             专注会话
@@ -870,12 +947,67 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </td>
                       <td className="px-4 py-3 text-slate-700 font-medium">{session.label}</td>
                       <td className="px-4 py-3 text-slate-500 text-xs">
-                        {session.taskId ? (
-                          <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 w-fit">
-                            <ListTodo size={12} />
-                            {tasks.find(t => t.id === session.taskId)?.title || '未知任务'}
-                          </span>
-                        ) : '-'}
+                        <div className="relative">
+                          {editingTaskLinkSessionId === session.id && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-40"
+                                onClick={() => setEditingTaskLinkSessionId(null)}
+                              />
+                              <div className="absolute left-0 top-0 z-50 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden min-w-[200px] max-h-48 overflow-y-auto custom-scrollbar">
+                                <button
+                                  className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm text-slate-500 border-b border-slate-100"
+                                  onClick={() => {
+                                    onUpdateSession(
+                                      session.id,
+                                      session.label,
+                                      session.startTime,
+                                      session.endTime || session.startTime,
+                                      undefined
+                                    );
+                                    setEditingTaskLinkSessionId(null);
+                                  }}
+                                >
+                                  -- 无关联 --
+                                </button>
+                                {tasks.filter(t => !t.completed).map(t => (
+                                  <button
+                                    key={t.id}
+                                    className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm text-slate-700 border-b border-slate-100 last:border-b-0 transition-colors"
+                                    onClick={() => {
+                                      onUpdateSession(
+                                        session.id,
+                                        session.label,
+                                        session.startTime,
+                                        session.endTime || session.startTime,
+                                        t.id
+                                      );
+                                      setEditingTaskLinkSessionId(null);
+                                    }}
+                                  >
+                                    {t.title}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                          <button
+                            onClick={() => setEditingTaskLinkSessionId(session.id)}
+                            className="flex items-center gap-1.5 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-all border border-transparent hover:border-slate-200 group"
+                          >
+                            {session.taskId ? (
+                              <>
+                                <ListTodo size={14} className="text-slate-500" />
+                                <span className="text-slate-700 font-medium">{tasks.find(t => t.id === session.taskId)?.title || '未知任务'}</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+                                <span className="text-slate-400 group-hover:text-slate-700 transition-colors">关联待办</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-slate-500">
                         {new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1156,6 +1288,8 @@ const TaskDetailsModal: React.FC<{
   const taskSessions = sessions.filter(s => s.taskId === task.id);
   const totalDuration = taskSessions.reduce((acc, s) => acc + s.durationSeconds, 0);
 
+  const [showGoalSelect, setShowGoalSelect] = useState(false);
+
   const formatDuration = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -1188,16 +1322,46 @@ const TaskDetailsModal: React.FC<{
             <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
               <Flag size={16} className={`text-${theme.primary}-500`} /> 关联目标
             </label>
-            <select
-              value={task.goalId || ''}
-              onChange={(e) => onUpdateTask(task.id, { goalId: e.target.value || undefined })}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
-            >
-              <option value="">-- 无关联目标 --</option>
-              {goals.map(g => (
-                <option key={g.id} value={g.id}>{g.title}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowGoalSelect(!showGoalSelect)}
+                className="w-full text-left border border-slate-200 rounded-xl p-2.5 bg-white text-slate-900 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all hover:border-slate-300 flex items-center justify-between"
+              >
+                <span className="text-sm">{task.goalId ? goals.find(g => g.id === task.goalId)?.title : '-- 无关联目标 --'}</span>
+                <ChevronDown size={18} className="text-slate-400" />
+              </button>
+              {showGoalSelect && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowGoalSelect(false)} />
+                  <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto custom-scrollbar">
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm text-slate-500 border-b border-slate-100"
+                      onClick={() => {
+                        onUpdateTask(task.id, { goalId: undefined });
+                        setShowGoalSelect(false);
+                      }}
+                    >
+                      -- 无关联目标 --
+                    </button>
+                    {goals.map(g => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm text-slate-700 border-b border-slate-100 last:border-b-0 transition-colors"
+                        onClick={() => {
+                          onUpdateTask(task.id, { goalId: g.id });
+                          setShowGoalSelect(false);
+                        }}
+                      >
+                        {g.title}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
 
@@ -1300,19 +1464,34 @@ const GoalDetailsModal: React.FC<{
                     <CalendarPopover value={editDate} onChange={setEditDate} theme={theme} />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-500">颜色标识:</span>
-                  <div className="flex flex-wrap gap-1">
+                <div>
+                  <span className="text-sm text-slate-500 mb-2 block">颜色标识:</span>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
                     {morandiColors.map(c => (
                       <button
                         key={c}
                         onClick={() => setEditColor(c)}
                         style={{ backgroundColor: c }}
-                        className={`w-6 h-6 rounded-full hover:scale-110 transition-transform ${editColor === c ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
+                        className={`w-7 h-7 rounded-full hover:scale-110 transition-transform ${editColor === c ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
                         title={c}
                       />
                     ))}
                   </div>
+                  <input
+                    type="text"
+                    placeholder="#RRGGBB 自定义颜色"
+                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const value = e.currentTarget.value.trim();
+                        if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                          setEditColor(value);
+                          e.currentTarget.value = '';
+                        }
+                      }
+                    }}
+                  />
                 </div>
                 <div className="flex gap-2 mt-2">
                   <button onClick={handleSave} className={`px-3 py-1 bg-${theme.primary}-600 text-white text-xs rounded hover:bg-${theme.primary}-700`}>保存</button>
@@ -1469,6 +1648,23 @@ const HabitDetailsModal: React.FC<{
                         className={`w-5 h-5 rounded-full hover:scale-110 transition-transform ${editColor === c ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
                       />
                     ))}
+                  </div>
+                  <div className="mt-2">
+                    <input
+                      type="text"
+                      placeholder="#RRGGBB 自定义颜色"
+                      className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const value = e.currentTarget.value.trim();
+                          if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                            setEditColor(value);
+                            e.currentTarget.value = '';
+                          }
+                        }
+                      }}
+                    />
                   </div>
                   <div className="flex gap-2">
                     <button onClick={handleSave} className={`px-2 py-1 bg-${theme.primary}-600 text-white text-xs rounded`}>保存</button>
