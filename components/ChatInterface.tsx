@@ -17,6 +17,7 @@ interface ChatInterfaceProps {
   onNewChat: () => void;
   onSelectChat: (id: string) => void;
   onDeleteChat: (id: string) => void;
+  onCloseChat: () => void;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
@@ -29,7 +30,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     currentChatId,
     onNewChat,
     onSelectChat,
-    onDeleteChat
+    onDeleteChat,
+    onCloseChat
 }) => {
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
@@ -82,6 +84,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 title="历史记录"
             >
                 <History size={20} />
+            </button>
+            <button
+                onClick={onCloseChat}
+                className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+                title="关闭聊天"
+            >
+                <X size={18} />
             </button>
         </div>
       </div>

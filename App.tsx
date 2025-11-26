@@ -17,6 +17,10 @@ const THEMES: Record<string, ThemeConfig> = {
   slate: { name: '极简黑白', primary: 'slate', secondary: 'gray', text: 'slate', bg: 'bg-gray-50/50' },
 };
 
+const DEFAULT_CHAT_WIDTH = 400;
+const MIN_CHAT_WIDTH = 320;
+const MIN_DASHBOARD_WIDTH = 520;
+
 // --- Mock Data Helper ---
 const createMockData = (): AppState => {
     const today = new Date();
@@ -154,6 +158,8 @@ const App: React.FC = () => {
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'coach' | 'theme' | 'data'>('coach');
   const [isLoading, setIsLoading] = useState(false);
@@ -214,6 +220,30 @@ const App: React.FC = () => {
       setPendingCloudData(null);
     }
   }, [isSettingsOpen, state.coachSettings, state.storageConfig]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const handleMouseMove = (event: MouseEvent) => {
+        const viewportWidth = window.innerWidth;
+        const desiredWidth = viewportWidth - event.clientX;
+        const maxAllowed = Math.max(MIN_CHAT_WIDTH, viewportWidth - MIN_DASHBOARD_WIDTH);
+        const boundedWidth = Math.min(Math.max(desiredWidth, MIN_CHAT_WIDTH), maxAllowed);
+        setChatWidth(boundedWidth);
+    };
+    const handleMouseUp = () => setIsResizing(false);
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+
+    return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+    };
+  }, [isResizing]);
 
   // --- Theme Helper ---
   const currentTheme = THEMES[state.theme] || THEMES.indigo;
@@ -850,7 +880,7 @@ const App: React.FC = () => {
     <div className={`flex h-screen overflow-hidden ${currentTheme.bg}`}>
       
       {/* Main Content Area */}
-      <div className={`flex-1 flex flex-col h-full transition-all duration-300 ${isChatOpen ? 'mr-[400px]' : ''}`}>
+      <div className="flex-1 flex flex-col h-full transition-all duration-300">
         
         {/* Navbar */}
         <header className="bg-white/90 backdrop-blur-sm border-b border-slate-200 h-16 px-6 flex items-center justify-between shrink-0 z-10">
@@ -923,19 +953,23 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Chat Sidebar (Fixed Right) */}
-      <div 
-        className={`fixed top-0 right-0 h-full w-[400px] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-20 ${
-          isChatOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-      >
-         <div className="relative h-full">
-            <button 
-                onClick={() => setIsChatOpen(false)}
-                className="absolute top-4 right-4 z-10 p-1 bg-white/20 hover:bg-white/30 rounded-full text-white transition-colors"
-            >
-                <X size={16} />
-            </button>
+      {/* Chat Sidebar with Resizable Divider */}
+      {isChatOpen && (
+        <>
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="调整聊天面板宽度"
+            className={`w-1.5 cursor-ew-resize bg-${currentTheme.primary}-100 hover:bg-${currentTheme.primary}-200 transition-colors`}
+            onMouseDown={(e) => {
+                e.preventDefault();
+                setIsResizing(true);
+            }}
+          />
+          <div 
+            className="relative h-full bg-white shadow-2xl flex flex-col transition-[width] duration-150 ease-out z-20"
+            style={{ width: `${chatWidth}px` }}
+          >
             <ChatInterface 
                 messages={messages}
                 onSendMessage={handleSendMessage}
@@ -947,9 +981,11 @@ const App: React.FC = () => {
                 onNewChat={createNewChat}
                 onSelectChat={selectChat}
                 onDeleteChat={deleteChat}
+                onCloseChat={() => setIsChatOpen(false)}
             />
-         </div>
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Settings Modal */}
       {isSettingsOpen && (

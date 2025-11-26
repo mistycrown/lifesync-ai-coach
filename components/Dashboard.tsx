@@ -344,18 +344,18 @@ const Dashboard: React.FC<DashboardProps> = ({
               
               {editingGoalId === goal.id ? (
                   <div className="flex flex-col gap-2">
-                      <input 
-                         type="text"
-                         value={editGoalTitle}
-                         onChange={(e) => setEditGoalTitle(e.target.value)}
-                         className="bg-white text-slate-900 border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-indigo-500"
-                      />
+                         <input 
+                            type="text"
+                            value={editGoalTitle}
+                            onChange={(e) => setEditGoalTitle(e.target.value)}
+                            className={`bg-white text-slate-900 border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-${theme.primary}-500`}
+                         />
                       <div className="flex gap-2">
                          <input 
                             type="date"
                             value={editGoalDate}
                             onChange={(e) => setEditGoalDate(e.target.value)}
-                            className="bg-white text-slate-900 border border-slate-200 rounded px-2 py-1 text-sm flex-1 focus:outline-none focus:border-indigo-500"
+                            className={`bg-white text-slate-900 border border-slate-200 rounded px-2 py-1 text-sm flex-1 focus:outline-none focus:border-${theme.primary}-500`}
                          />
                          <button onClick={saveEditingGoal} className={`p-1.5 bg-${theme.primary}-600 text-white rounded hover:bg-${theme.primary}-700`}><Save size={14}/></button>
                          <button onClick={() => setEditingGoalId(null)} className="p-1.5 bg-slate-200 text-slate-600 rounded hover:bg-slate-300"><X size={14}/></button>
