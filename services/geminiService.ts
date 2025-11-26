@@ -38,6 +38,33 @@ const addGoalDeclaration: FunctionDeclaration = {
   },
 };
 
+const addSessionDeclaration: FunctionDeclaration = {
+  name: 'addSession',
+  parameters: {
+    type: Type.OBJECT,
+    description: 'Add a focus session (专注记录) to the user\'s timeline. Use this when user mentions past activities like "4点到5点看书".',
+    properties: {
+      label: {
+        type: Type.STRING,
+        description: 'The activity label or description, e.g., "看书", "写代码".',
+      },
+      startTime: {
+        type: Type.STRING,
+        description: 'Start time in ISO format (YYYY-MM-DDTHH:mm:ss). Parse from user input.',
+      },
+      endTime: {
+        type: Type.STRING,
+        description: 'End time in ISO format (YYYY-MM-DDTHH:mm:ss). Parse from user input.',
+      },
+      taskTitle: {
+        type: Type.STRING,
+        description: 'Optional. If this session relates to an existing task, provide the exact task title to link it.',
+      },
+    },
+    required: ['label', 'startTime', 'endTime'],
+  },
+};
+
 // --- OpenAI Tool Conversion Helper ---
 const getOpenAITools = () => {
   return [
@@ -67,6 +94,23 @@ const getOpenAITools = () => {
             deadline: { type: "string", description: "The deadline date in YYYY-MM-DD format." }
           },
           required: ["title", "deadline"]
+        }
+      }
+    },
+    {
+      type: "function",
+      function: {
+        name: "addSession",
+        description: "Add a focus session (专注记录) to the user's timeline. Use this when user mentions past activities like '4点到5点看书'.",
+        parameters: {
+          type: "object",
+          properties: {
+            label: { type: "string", description: "The activity label or description, e.g., '看书', '写代码'." },
+            startTime: { type: "string", description: "Start time in ISO format (YYYY-MM-DDTHH:mm:ss). Parse from user input." },
+            endTime: { type: "string", description: "End time in ISO format (YYYY-MM-DDTHH:mm:ss). Parse from user input." },
+            taskTitle: { type: "string", description: "Optional. If this session relates to an existing task, provide the exact task title to link it." }
+          },
+          required: ["label", "startTime", "endTime"]
         }
       }
     }
@@ -190,7 +234,15 @@ export class CoachService {
     // Format Lists
     const pendingTasks = tasks.filter(t => !t.completed).map(t => `- ${t.title}`).join('\n') || "(无)";
     const activeGoals = goals.filter(g => !g.completed).map(g => `- ${g.title} (截止: ${g.deadline})`).join('\n') || "(无)";
-    const logs = todaySessions.map(s => `- ${s.label}: ${Math.floor(s.durationSeconds / 60)}分钟`).join('\n') || "(无)";
+
+    // Include both focus sessions and check-ins
+    const logs = todaySessions.map(s => {
+      if (s.type === 'checkin') {
+        return `- [打卡] ${s.label}`;
+      } else {
+        return `- ${s.label}: ${Math.floor(s.durationSeconds / 60)}分钟`;
+      }
+    }).join('\n') || "(无)";
 
     // Active Task
     const activeSession = sessions.find(s => s.id === activeSessionId);
@@ -202,13 +254,12 @@ export class CoachService {
       : "你是一个乐于助人的AI教练。";
 
     const basePrompt = `
-你是一个由用户自定义的“AI人生教练”，你的名字叫 "${coachSettings.name}"。
+你是一个由用户自定义的"AI人生教练"，你的名字叫 "${coachSettings.name}"。
 用户的名字/称呼是 "${coachSettings.userName || '学员'}"。
 
 【软件理念】：
-- 我们的核心理念是“Focus on Today”（专注当下）。
-- 引导用户“日事日毕”，不要过度焦虑未来，先把今天过好。
-- “待办事项”关注今天要做的事，“目标”关注跨天的长期愿景。
+- 引导用户"日事日毕"。
+- "待办事项"关注今天要做的事，"目标"关注跨天的长期愿景。
 
 【你的核心人设与风格 (必须严格遵守)】:
 ${personalityInstruction}
@@ -223,18 +274,19 @@ ${coachSettings.userContext}
 ${pendingTasks}
 - 🌟 长期目标：
 ${activeGoals}
-- ⏱️ 今日时间轴记录：
+- ⏱️ 今日时间轴记录（包括专注记录和打卡记录）：
 ${logs}
 
 【你的职责】：
 1. 严格遵循【核心人设与风格】进行回复。
 2. 你的回复必须简短精炼，格式清晰（善用Markdown），像真人聊天一样。
-3. 当用户说“早安”时，引导他们思考今天的核心任务（Top 3）。
-4. 当用户说“晚安”时，请检查“尚未完成的待办事项”和“今日时间轴记录”。如果还有待办未完成，根据你的风格指出；如果完成了，给予肯定。最后给予温暖的结束语。
-5. 你有权限操作用户的列表。如果你在对话中决定添加任务或目标，请务必使用提供的工具 (Tools)。
+3. 当用户说"早安"时，引导他们思考今天的核心任务（Top 3）。
+4. 当用户说"晚安"时，请检查"尚未完成的待办事项"和"今日时间轴记录"（包括打卡）。如果还有待办未完成，根据你的风格指出；如果完成了，给予肯定。最后给予温暖的结束语。
+5. 你有权限操作用户的列表和时间轴。如果你在对话中决定添加任务、目标或专注记录，请务必使用提供的工具 (Tools)。
+6. **补记录功能**：当用户提到过去的活动（例如"4点到5点看书"、"上午写了2小时代码"），使用 addSession 工具为他们添加专注记录。如果该活动与某个待办事项相关，在调用工具时提供 taskTitle 参数以自动关联。
 
 【防重复机制】：
-- 当用户说“我添加了...”、“我设定了...”或“我完成了...”时，这表示用户已经手动在界面完成了操作。
+- 当用户说"我添加了..."、"我设定了..."或"我完成了..."时，这表示用户已经手动在界面完成了操作。
 - 在这种情况下，**不要**再次调用工具添加任务，否则会导致数据重复。
 - 你只需要针对用户的行为给予口头鼓励或点评即可。
     `;
@@ -254,7 +306,7 @@ ${logs}
         model: config.modelId || 'gemini-2.5-flash',
         config: {
           systemInstruction: this.getSystemInstruction(state),
-          tools: [{ functionDeclarations: [addTaskDeclaration, addGoalDeclaration] }],
+          tools: [{ functionDeclarations: [addTaskDeclaration, addGoalDeclaration, addSessionDeclaration] }],
         },
       });
       this.openaiClient = null;
@@ -369,9 +421,14 @@ ${logs}
 
     const taskDetails = targetSessions.length > 0
       ? targetSessions.map(s => {
-        const start = new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const duration = Math.floor(s.durationSeconds / 60);
-        return `- ${s.label} (${start}, ${duration}分钟)`;
+        if (s.type === 'checkin') {
+          const time = new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          return `- [打卡] ${s.label} (${time})`;
+        } else {
+          const start = new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const duration = Math.floor(s.durationSeconds / 60);
+          return `- ${s.label} (${start}, ${duration}分钟)`;
+        }
       }).join('\n')
       : "无记录";
 

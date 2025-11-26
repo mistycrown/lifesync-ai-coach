@@ -56,6 +56,7 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
     return (
         <div className="relative" ref={containerRef}>
             <button
+                type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className={`flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:border-${theme.primary}-300 hover:text-${theme.primary}-600 transition-colors shadow-sm`}
             >
@@ -66,9 +67,9 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
             {isOpen && (
                 <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-72 z-50 animate-in fade-in zoom-in-95 duration-200">
                     <div className="flex justify-between items-center mb-4">
-                        <button onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded-full text-slate-500"><ChevronLeft size={18} /></button>
+                        <button type="button" onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded-full text-slate-500"><ChevronLeft size={18} /></button>
                         <span className="font-bold text-slate-700">{currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月</span>
-                        <button onClick={handleNextMonth} className="p-1 hover:bg-slate-100 rounded-full text-slate-500"><ChevronRight size={18} /></button>
+                        <button type="button" onClick={handleNextMonth} className="p-1 hover:bg-slate-100 rounded-full text-slate-500"><ChevronRight size={18} /></button>
                     </div>
 
                     <div className="grid grid-cols-7 gap-1 mb-2">
@@ -93,6 +94,7 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
 
                             return (
                                 <button
+                                    type="button"
                                     key={day}
                                     onClick={() => handleDateClick(day)}
                                     className={`
@@ -109,6 +111,7 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
 
                     <div className="mt-3 pt-3 border-t border-slate-50 flex justify-center">
                         <button
+                            type="button"
                             onClick={() => {
                                 const today = new Date();
                                 const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;

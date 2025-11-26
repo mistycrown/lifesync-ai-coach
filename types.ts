@@ -16,6 +16,14 @@ export interface Goal {
   color?: string; // Hex code or tailwind color name
 }
 
+export interface Habit {
+  id: string;
+  title: string;
+  icon?: string;
+  color?: string;
+  createdAt: string;
+}
+
 export interface Session {
   id: string;
   label: string;
@@ -23,6 +31,7 @@ export interface Session {
   endTime: string | null; // Null if currently running
   durationSeconds: number;
   taskId?: string; // Link to a task
+  habitId?: string; // Link to a habit
   type?: 'focus' | 'checkin'; // Default is 'focus'
   checkInType?: 'morning' | 'night' | 'custom';
 }
@@ -96,6 +105,7 @@ export interface AppState {
   tasks: Task[];
   goals: Goal[];
   sessions: Session[];
+  habits: Habit[]; // New: Habits list
   reports: DailyReport[]; // Stored daily reports
   activeSessionId: string | null;
   coachSettings: CoachSettings;
@@ -111,6 +121,7 @@ export interface DashboardProps {
   tasks: Task[];
   goals: Goal[];
   sessions: Session[];
+  habits: Habit[];
   reports: DailyReport[];
   activeSessionId: string | null;
   theme: ThemeConfig;
@@ -120,7 +131,7 @@ export interface DashboardProps {
   onAddTask: (title: string, goalId?: string) => void;
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
 
-  onAddGoal: (title: string, deadline: string) => void;
+  onAddGoal: (title: string, deadline: string, color?: string) => void;
   onToggleGoal: (id: string) => void;
   onDeleteGoal: (id: string) => void;
   onUpdateGoal: (id: string, title: string, deadline: string, color?: string) => void;
@@ -132,6 +143,12 @@ export interface DashboardProps {
   onRenameSession: (id: string, newLabel: string) => void;
   onDeleteSession: (id: string) => void;
   onCheckIn: (type: 'morning' | 'night' | 'custom', label: string) => void;
+
+  // Habit Props
+  onAddHabit: (title: string, color?: string) => void;
+  onUpdateHabit: (id: string, updates: Partial<Habit>) => void;
+  onDeleteHabit: (id: string) => void;
+  onToggleCheckIn: (habitId: string, date?: string) => void;
 
   // Report Props
   onGenerateReport: (date?: string) => Promise<{ title: string, content: string }>;

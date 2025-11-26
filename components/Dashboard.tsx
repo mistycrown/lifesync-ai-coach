@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarPopover } from './Calendar';
+import { TimePicker } from './TimePicker';
 import { WeeklyTimeline } from './WeeklyTimeline';
-import { Play, Square, CheckCircle, Circle, Clock, Calendar, Trash2, Plus, Flag, ListTodo, FileText, Edit2, Save, X, Loader2, ChevronDown, ChevronRight, Check, History, ChevronLeft, Sun, Moon, ScrollText } from 'lucide-react';
+import { Play, Square, CheckCircle, Circle, Clock, Calendar, Trash2, Plus, Flag, ListTodo, FileText, Edit2, Save, X, Loader2, ChevronDown, ChevronRight, Check, History, ChevronLeft, Sun, Moon, ScrollText, Palette } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { Task, Goal, Session, DailyReport, DashboardProps } from '../types';
+import { AppState, Session, Task, Goal, DailyReport, ThemeConfig, DashboardProps } from '../types';
+
+const MORANDI_COLORS = [
+  '#e8d3c0', // Warm Beige
+  '#d89c7a', // Warm Brown/Orange
+  '#d6c38b', // Warm Yellow
+  '#849b91', // Greyish Green
+  '#c2cedc', // Cool Grey/Blue
+  '#686789', // Cool Grey/Purple
+];
 
 const Dashboard: React.FC<DashboardProps> = ({
   tasks,
@@ -35,14 +45,26 @@ const Dashboard: React.FC<DashboardProps> = ({
   onUpdateReport,
   onDeleteReport,
   onCheckIn,
+  habits,
+  onAddHabit,
+  onUpdateHabit,
+  onDeleteHabit,
+  onToggleCheckIn,
 }) => {
   const [elapsed, setElapsed] = useState(0);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [newGoalDate, setNewGoalDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newGoalColor, setNewGoalColor] = useState<string | undefined>(undefined);
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [sessionLabel, setSessionLabel] = useState('');
   const [activeLabelEdit, setActiveLabelEdit] = useState('');
   const [isEditingActiveLabel, setIsEditingActiveLabel] = useState(false);
+
+  // Habit State
+  const [viewingHabitId, setViewingHabitId] = useState<string | null>(null);
+  const [showAddHabitModal, setShowAddHabitModal] = useState(false);
+  const [newHabitTitle, setNewHabitTitle] = useState('');
 
   // Log Filtering
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
@@ -141,9 +163,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   const handleAddGoal = (e: React.FormEvent) => {
     e.preventDefault();
     if (newGoalTitle.trim() && newGoalDate) {
-      onAddGoal(newGoalTitle, newGoalDate);
+      onAddGoal(newGoalTitle, newGoalDate, newGoalColor);
       setNewGoalTitle('');
       setNewGoalDate(new Date().toISOString().split('T')[0]);
+      setNewGoalColor(undefined);
     }
   };
 
@@ -447,38 +470,37 @@ const Dashboard: React.FC<DashboardProps> = ({
           </>
         ) : (
           <div className="flex flex-col h-full">
-            <div className="flex-1 flex flex-col justify-center gap-4">
-              <button
-                onClick={() => onCheckIn('morning', '早安')}
-                className="p-4 rounded-xl bg-orange-50 text-orange-600 hover:bg-orange-100 hover:scale-105 transition-all flex items-center gap-4 border border-orange-100 shadow-sm"
-              >
-                <div className="p-3 bg-white rounded-full shadow-sm text-orange-500"><Sun size={24} /></div>
-                <div className="text-left">
-                  <span className="font-bold block text-lg">早安打卡</span>
-                  <span className="text-xs text-orange-400 opacity-80">开启美好的一天</span>
-                </div>
-              </button>
-              <button
-                onClick={() => onCheckIn('night', '晚安')}
-                className="p-4 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:scale-105 transition-all flex items-center gap-4 border border-indigo-100 shadow-sm"
-              >
-                <div className="p-3 bg-white rounded-full shadow-sm text-indigo-500"><Moon size={24} /></div>
-                <div className="text-left">
-                  <span className="font-bold block text-lg">晚安打卡</span>
-                  <span className="text-xs text-indigo-400 opacity-80">总结今日，好梦</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setShowCustomCheckIn(true)}
-                className="p-4 rounded-xl bg-slate-50 text-slate-600 hover:bg-slate-100 hover:scale-105 transition-all flex items-center gap-4 border border-slate-100 shadow-sm"
-              >
-                <div className="p-3 bg-white rounded-full shadow-sm text-slate-500"><Plus size={24} /></div>
-                <div className="text-left">
-                  <span className="font-bold block text-lg">自定义打卡</span>
-                  <span className="text-xs text-slate-400 opacity-80">记录生活点滴</span>
-                </div>
-              </button>
+            <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+              {habits.map(habit => {
+                const isCheckedToday = sessions.some(s => s.habitId === habit.id && s.startTime.startsWith(new Date().toISOString().split('T')[0]));
+                const totalCheckIns = sessions.filter(s => s.habitId === habit.id).length;
+
+                return (
+                  <div key={habit.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => setViewingHabitId(habit.id)}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isCheckedToday ? `bg-${theme.primary}-100 text-${theme.primary}-600` : 'bg-slate-100 text-slate-400'}`} style={habit.color ? { backgroundColor: isCheckedToday ? `${habit.color}33` : undefined, color: isCheckedToday ? habit.color : undefined } : {}}>
+                        {habit.icon === 'sun' ? <Sun size={20} /> : habit.icon === 'moon' ? <Moon size={20} /> : <CheckCircle size={20} />}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className={`font-medium ${isCheckedToday ? 'text-slate-900' : 'text-slate-600'}`}>{habit.title}</span>
+                        <span className="text-[10px] text-slate-400">已打卡 {totalCheckIns} 天</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onToggleCheckIn(habit.id); }}
+                      className={`p-2 rounded-full transition-colors ${isCheckedToday ? `bg-${theme.primary}-500 text-white` : 'bg-slate-100 text-slate-300 hover:bg-slate-200'}`}
+                      style={isCheckedToday && habit.color ? { backgroundColor: habit.color } : {}}
+                    >
+                      <Check size={18} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
+            <button onClick={() => setShowAddHabitModal(true)} className="mt-4 w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-slate-300 hover:text-slate-500 transition-colors flex items-center justify-center gap-2">
+              <Plus size={18} />
+              <span>添加打卡习惯</span>
+            </button>
           </div>
         )}
       </div>
@@ -493,7 +515,15 @@ const Dashboard: React.FC<DashboardProps> = ({
             <p className="text-slate-400 text-sm text-center py-4">暂无目标。心怀梦想，脚踏实地！</p>
           )}
           {sortedGoals.map(goal => (
-            <div key={goal.id} className={`p-4 rounded-2xl border transition-all ${goal.completed ? 'bg-slate-50 border-slate-100 opacity-70' : `border-${theme.primary}-100 bg-gradient-to-br from-${theme.primary}-50/50 to-white shadow-sm hover:shadow-md`} cursor-pointer`} onClick={() => setViewingGoalId(goal.id)}>
+            <div
+              key={goal.id}
+              className={`p-4 rounded-2xl border transition-all cursor-pointer ${goal.completed ? 'bg-slate-50 border-slate-100 opacity-70' : (!goal.color?.startsWith('#') ? `border-${theme.primary}-100 bg-gradient-to-br from-${theme.primary}-50/50 to-white shadow-sm hover:shadow-md` : 'shadow-sm hover:shadow-md')}`}
+              style={!goal.completed && goal.color?.startsWith('#') ? {
+                borderColor: goal.color,
+                backgroundColor: `${goal.color}20`
+              } : {}}
+              onClick={() => setViewingGoalId(goal.id)}
+            >
 
               <div className="flex justify-between items-start group">
                 <div className="flex items-start gap-3 flex-1">
@@ -524,22 +554,43 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           ))}
         </div>
-        <form onSubmit={handleAddGoal} className="mt-4 flex flex-col gap-2">
+        <form onSubmit={handleAddGoal} className="mt-4 flex items-center gap-2">
           <input
             type="text"
             value={newGoalTitle}
             onChange={(e) => setNewGoalTitle(e.target.value)}
             placeholder="目标名称..."
-            className={`bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
+            className={`flex-1 bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
           />
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <CalendarPopover value={newGoalDate} onChange={setNewGoalDate} theme={theme} />
-            </div>
-            <button type="submit" className="px-4 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-sm font-medium">
-              添加
-            </button>
+          <div className="w-32">
+            <CalendarPopover value={newGoalDate} onChange={setNewGoalDate} theme={theme} />
           </div>
+
+          <div className="relative">
+            <button type="button" onClick={() => setShowColorPicker(!showColorPicker)} className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors" style={{ backgroundColor: newGoalColor }}>
+              {!newGoalColor && <Palette size={16} className="text-slate-400" />}
+            </button>
+            {showColorPicker && (
+              <>
+                <div className="fixed inset-0 z-0" onClick={() => setShowColorPicker(false)} />
+                <div className="absolute bottom-full right-0 mb-2 p-2 bg-white rounded-xl shadow-xl border border-slate-100 grid grid-cols-3 gap-1 z-10 w-24 animate-in fade-in zoom-in-95 duration-200">
+                  {MORANDI_COLORS.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => { setNewGoalColor(c); setShowColorPicker(false); }}
+                      style={{ backgroundColor: c }}
+                      className="w-6 h-6 rounded-full hover:scale-110 transition-transform"
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <button type="submit" className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-sm font-medium whitespace-nowrap">
+            添加
+          </button>
         </form>
       </div>
 
@@ -589,19 +640,24 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <button
-            onClick={() => setShowAddLog(true)}
+            onClick={() => {
+              setManualLogStart(getCurrentDateTimeLocal());
+              setShowAddLog(true);
+            }}
             className={`bg-${theme.primary}-50 hover:bg-${theme.primary}-100 text-${theme.primary}-600 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ml-auto sm:ml-0`}
           >
             + 补录记录
           </button>
         </div>
 
+
+
         {/* Backfill Modal */}
         {showAddLog && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
               <h3 className="font-bold text-lg mb-4 text-slate-800">补录活动记录</h3>
-              <form onSubmit={handleManualLogSubmit} className="space-y-4">
+              <form onSubmit={handleManualLogSubmit} className="space-y-4" noValidate>
                 <div>
                   <label className="block text-sm text-slate-600 mb-1">内容</label>
                   <input
@@ -624,16 +680,16 @@ const Dashboard: React.FC<DashboardProps> = ({
                         theme={theme}
                       />
                     </div>
-                    <input
-                      required
-                      type="time"
-                      className={`border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 text-slate-900 focus:outline-none focus:border-${theme.primary}-500`}
-                      value={manualLogStart.split('T')[1] || ''}
-                      onChange={(e) => {
-                        const date = manualLogStart.split('T')[0];
-                        setManualLogStart(`${date}T${e.target.value}`);
-                      }}
-                    />
+                    <div className="w-32">
+                      <TimePicker
+                        value={manualLogStart.split('T')[1] || '00:00'}
+                        onChange={(time) => {
+                          const date = manualLogStart.split('T')[0];
+                          setManualLogStart(`${date}T${time}`);
+                        }}
+                        theme={theme}
+                      />
+                    </div>
                   </div>
                 </div>
                 <div>
@@ -672,8 +728,28 @@ const Dashboard: React.FC<DashboardProps> = ({
         {editingSession && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-              <h3 className="font-bold text-lg mb-4 text-slate-800">修改活动记录</h3>
-              <form onSubmit={handleSessionUpdate} className="space-y-4">
+              <h3 className="font-bold text-lg mb-4 text-slate-800">
+                {editingSession.type === 'checkin' ? '修改打卡记录' : '修改专注记录'}
+              </h3>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (editingSession && editSessionLabel && editSessionStart) {
+                  let end = editSessionEnd;
+                  if (editingSession.type === 'checkin') {
+                    end = editSessionStart; // Check-in is a point in time
+                  }
+                  if (end) {
+                    onUpdateSession(
+                      editingSession.id,
+                      editSessionLabel,
+                      new Date(editSessionStart).toISOString(),
+                      new Date(end).toISOString(),
+                      editSessionTaskId || undefined
+                    );
+                    setEditingSession(null);
+                  }
+                }
+              }} className="space-y-4" noValidate>
                 <div>
                   <label className="block text-sm text-slate-600 mb-1">内容</label>
                   <input
@@ -683,26 +759,37 @@ const Dashboard: React.FC<DashboardProps> = ({
                     onChange={(e) => setEditSessionLabel(e.target.value)}
                   />
                 </div>
+
+                {/* Start Time (or Time for Check-in) */}
                 <div>
-                  <label className="block text-sm text-slate-600 mb-1">开始时间</label>
-                  <input
-                    required
-                    type="datetime-local"
-                    className={`w-full border border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-900 focus:outline-none focus:border-${theme.primary}-500`}
-                    value={editSessionStart}
-                    onChange={(e) => setEditSessionStart(e.target.value)}
+                  <label className="block text-sm text-slate-600 mb-1">
+                    {editingSession.type === 'checkin' ? '打卡时间' : '开始时间'}
+                  </label>
+                  <TimePicker
+                    value={editSessionStart.split('T')[1] || '00:00'}
+                    onChange={(time) => {
+                      const date = editSessionStart.split('T')[0];
+                      setEditSessionStart(`${date}T${time}`);
+                    }}
+                    theme={theme}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm text-slate-600 mb-1">结束时间</label>
-                  <input
-                    required
-                    type="datetime-local"
-                    className={`w-full border border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-900 focus:outline-none focus:border-${theme.primary}-500`}
-                    value={editSessionEnd}
-                    onChange={(e) => setEditSessionEnd(e.target.value)}
-                  />
-                </div>
+
+                {/* End Time (Only for non-checkin) */}
+                {editingSession.type !== 'checkin' && (
+                  <div>
+                    <label className="block text-sm text-slate-600 mb-1">结束时间</label>
+                    <TimePicker
+                      value={editSessionEnd.split('T')[1] || '00:00'}
+                      onChange={(time) => {
+                        const date = editSessionEnd.split('T')[0];
+                        setEditSessionEnd(`${date}T${time}`);
+                      }}
+                      theme={theme}
+                    />
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm text-slate-600 mb-1">关联待办</label>
                   <select
@@ -982,12 +1069,80 @@ const Dashboard: React.FC<DashboardProps> = ({
           />
         )
       }
+      {
+        showCustomCheckIn && (
+          <CustomCheckInModal
+            onClose={() => setShowCustomCheckIn(false)}
+            onSubmit={(label) => {
+              onCheckIn('custom', label);
+              setShowCustomCheckIn(false);
+            }}
+            theme={theme}
+          />
+        )
+      }
+
+      {
+        viewingHabitId && (
+          <HabitDetailsModal
+            habit={habits.find(h => h.id === viewingHabitId)!}
+            sessions={sessions}
+            theme={theme}
+            onClose={() => setViewingHabitId(null)}
+            onDeleteHabit={onDeleteHabit}
+            onUpdateHabit={onUpdateHabit}
+            onToggleCheckIn={onToggleCheckIn}
+          />
+        )
+      }
+      {
+        showAddHabitModal && (
+          <AddHabitModal
+            theme={theme}
+            onClose={() => setShowAddHabitModal(false)}
+            onAddHabit={onAddHabit}
+          />
+        )
+      }
 
     </div >
   );
 };
 
 // --- Details Modals ---
+
+const CustomCheckInModal: React.FC<{
+  onClose: () => void;
+  onSubmit: (label: string) => void;
+  theme: any;
+}> = ({ onClose, onSubmit, theme }) => {
+  const [label, setLabel] = useState('');
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h3 className="font-bold text-lg mb-4 text-slate-800">自定义打卡</h3>
+        <form onSubmit={(e) => { e.preventDefault(); if (label.trim()) onSubmit(label); }} className="space-y-4">
+          <div>
+            <label className="block text-sm text-slate-600 mb-1">打卡内容</label>
+            <input
+              autoFocus
+              required
+              className={`w-full border border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-900 focus:outline-none focus:border-${theme.primary}-500`}
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="例如：阅读30分钟、健身..."
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <button type="button" onClick={onClose} className="px-3 py-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">取消</button>
+            <button type="submit" className={`px-3 py-1.5 bg-${theme.primary}-600 text-white rounded-lg hover:bg-${theme.primary}-700`}>打卡</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const TaskDetailsModal: React.FC<{
   task: Task;
@@ -1115,11 +1270,9 @@ const GoalDetailsModal: React.FC<{
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(goal.title);
   const [editDate, setEditDate] = useState(goal.deadline);
-  const [editColor, setEditColor] = useState(goal.color || 'indigo');
+  const [editColor, setEditColor] = useState(goal.color || MORANDI_COLORS[0]);
 
-  const colors = [
-    'slate', 'red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose'
-  ];
+  const morandiColors = MORANDI_COLORS;
 
   const handleSave = () => {
     if (editTitle.trim() && editDate) {
@@ -1150,11 +1303,12 @@ const GoalDetailsModal: React.FC<{
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-slate-500">颜色标识:</span>
                   <div className="flex flex-wrap gap-1">
-                    {colors.map(c => (
+                    {morandiColors.map(c => (
                       <button
                         key={c}
                         onClick={() => setEditColor(c)}
-                        className={`w-5 h-5 rounded-full bg-${c}-500 hover:scale-110 transition-transform ${editColor === c ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
+                        style={{ backgroundColor: c }}
+                        className={`w-6 h-6 rounded-full hover:scale-110 transition-transform ${editColor === c ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
                         title={c}
                       />
                     ))}
@@ -1168,7 +1322,7 @@ const GoalDetailsModal: React.FC<{
             ) : (
               <>
                 <div className="flex items-center gap-2 group">
-                  <h3 className="text-xl font-bold font-serif text-slate-800">{goal.title}</h3>
+                  <h3 className="text-xl font-bold font-serif text-slate-800" style={{ color: goal.color }}>{goal.title}</h3>
                   <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-opacity">
                     <Edit2 size={16} />
                   </button>
@@ -1258,4 +1412,206 @@ const GoalDetailsModal: React.FC<{
   );
 };
 
+const HabitDetailsModal: React.FC<{
+  habit: any;
+  sessions: Session[];
+  theme: any;
+  onClose: () => void;
+  onDeleteHabit: (id: string) => void;
+  onUpdateHabit: (id: string, updates: any) => void;
+  onToggleCheckIn: (habitId: string, date?: string) => void;
+}> = ({ habit, sessions, theme, onClose, onDeleteHabit, onUpdateHabit, onToggleCheckIn }) => {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Edit State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(habit.title);
+  const [editColor, setEditColor] = useState(habit.color || MORANDI_COLORS[0]);
+
+  const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
+
+  const handlePrevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  const handleNextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+
+  const totalCheckIns = sessions.filter(s => s.habitId === habit.id).length;
+
+  const handleSave = () => {
+    if (editTitle.trim()) {
+      onUpdateHabit(habit.id, { title: editTitle, color: editColor });
+      setIsEditing(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <div className="flex items-center gap-3 flex-1">
+            <div className={`p-2 bg-${theme.primary}-100 text-${theme.primary}-600 rounded-xl`} style={habit.color ? { backgroundColor: `${habit.color}33`, color: habit.color } : {}}>
+              {habit.icon === 'sun' ? <Sun size={24} /> : habit.icon === 'moon' ? <Moon size={24} /> : <CheckCircle size={24} />}
+            </div>
+            <div className="flex-1">
+              {isEditing ? (
+                <div className="space-y-2">
+                  <input
+                    className="w-full text-xl font-bold font-serif text-slate-800 border-b border-slate-300 focus:border-indigo-500 outline-none bg-transparent"
+                    value={editTitle}
+                    onChange={e => setEditTitle(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="flex gap-1 flex-wrap">
+                    {MORANDI_COLORS.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => setEditColor(c)}
+                        style={{ backgroundColor: c }}
+                        className={`w-5 h-5 rounded-full hover:scale-110 transition-transform ${editColor === c ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={handleSave} className={`px-2 py-1 bg-${theme.primary}-600 text-white text-xs rounded`}>保存</button>
+                    <button onClick={() => setIsEditing(false)} className="px-2 py-1 bg-slate-200 text-slate-600 text-xs rounded">取消</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="group flex items-center gap-2">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800" style={habit.color ? { color: habit.color } : {}}>{habit.title}</h3>
+                    <p className="text-sm text-slate-500">累计打卡 {totalCheckIns} 天</p>
+                  </div>
+                  <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-opacity">
+                    <Edit2 size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <button onClick={handlePrevMonth} className="p-2 hover:bg-slate-100 rounded-full text-slate-500"><ChevronLeft size={20} /></button>
+            <span className="font-bold text-lg text-slate-700">{currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月</span>
+            <button onClick={handleNextMonth} className="p-2 hover:bg-slate-100 rounded-full text-slate-500"><ChevronRight size={20} /></button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-2 mb-2">
+            {['日', '一', '二', '三', '四', '五', '六'].map(d => (
+              <div key={d} className="text-center text-sm text-slate-400 font-medium py-1">{d}</div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+              <div key={`empty-${i}`} />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const isChecked = sessions.some(s => s.habitId === habit.id && s.startTime.startsWith(dateStr));
+              const isToday = dateStr === new Date().toISOString().split('T')[0];
+              const isFuture = new Date(dateStr) > new Date();
+
+              return (
+                <button
+                  key={day}
+                  disabled={isFuture}
+                  onClick={() => onToggleCheckIn(habit.id, dateStr)}
+                  className={`
+                              aspect-square rounded-xl flex items-center justify-center text-sm font-medium transition-all relative
+                              ${isChecked
+                      ? `text-white shadow-md`
+                      : isToday
+                        ? `bg-${theme.primary}-50 text-${theme.primary}-600 border-2 border-${theme.primary}-200`
+                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                    }
+                              ${isFuture ? 'opacity-30 cursor-not-allowed' : ''}
+                            `}
+                  style={isChecked ? { backgroundColor: habit.color || '#6366f1' } : {}}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-6 flex justify-between items-center">
+            <button
+              onClick={() => {
+                if (confirm('确定要删除这个打卡习惯吗？历史记录也会被删除。')) {
+                  onDeleteHabit(habit.id);
+                  onClose();
+                }
+              }}
+              className="text-red-500 text-sm hover:underline flex items-center gap-1"
+            >
+              <Trash2 size={14} /> 删除习惯
+            </button>
+            <div className="text-sm text-slate-400">
+              本月: <span className={`font-bold text-${theme.primary}-600`}>
+                {sessions.filter(s => s.habitId === habit.id && s.startTime.startsWith(`${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`)).length}
+              </span> 天
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AddHabitModal: React.FC<{
+  theme: any;
+  onClose: () => void;
+  onAddHabit: (title: string) => void;
+}> = ({ theme, onClose, onAddHabit }) => {
+  const [title, setTitle] = useState('');
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <h3 className="text-xl font-bold text-slate-800 mb-4">添加新习惯</h3>
+        <input
+          type="text"
+          autoFocus
+          placeholder="习惯名称 (e.g. 晨跑, 阅读)"
+          className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4 focus:outline-none focus:border-${theme.primary}-500`}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && title.trim()) {
+              onAddHabit(title);
+              onClose();
+            }
+          }}
+        />
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200 transition-colors"
+          >
+            取消
+          </button>
+          <button
+            onClick={() => {
+              if (title.trim()) {
+                onAddHabit(title);
+                onClose();
+              }
+            }}
+            className={`flex-1 py-3 bg-${theme.primary}-600 text-white rounded-xl font-medium hover:bg-${theme.primary}-700 transition-colors shadow-lg shadow-${theme.primary}-200`}
+          >
+            添加
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default Dashboard;
+
+

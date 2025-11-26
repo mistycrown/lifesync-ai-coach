@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings, BarChart3, MessageSquare, X, Sparkles, FileText, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
 import Dashboard from './components/Dashboard';
-import { AppState, ChatMessage, Task, Goal, Session, DailyReport, CoachSettings, ThemeConfig, ModelConfig, StorageConfig, ChatSessionData } from './types';
+import { AppState, ChatMessage, Task, Goal, Session, DailyReport, CoachSettings, ThemeConfig, ModelConfig, StorageConfig, ChatSessionData, Habit } from './types';
 import { CoachService } from './services/geminiService';
 import { StorageService, SUPABASE_TABLE } from './services/storageService';
 
@@ -49,18 +49,22 @@ const createMockData = (): AppState => {
             { id: '1', title: '发布最小可行性产品 (MVP)', deadline: '2025-12-31', completed: false },
             { id: '2', title: '坚持跑步30天', deadline: '2025-06-01', completed: false },
         ],
+        habits: [
+            { id: 'h1', title: '早安打卡', icon: 'sun', createdAt: toISO(today, 0, 0) },
+            { id: 'h2', title: '晚安打卡', icon: 'moon', createdAt: toISO(today, 0, 0) },
+        ],
         sessions: [
             // Today
-            { id: 's1', label: '☀️ 早安打卡', startTime: toISO(today, 8, 30), endTime: toISO(today, 8, 30), durationSeconds: 0 },
+            { id: 's1', label: '☀️ 早安打卡', startTime: toISO(today, 8, 30), endTime: toISO(today, 8, 30), durationSeconds: 0, habitId: 'h1', type: 'checkin' },
             { id: 's2', label: '开发核心功能模块', startTime: toISO(today, 9, 30), endTime: toISO(today, 10, 15), durationSeconds: 45 * 60 },
             { id: 's3', label: '修复Bug #1024', startTime: toISO(today, 10, 45), endTime: toISO(today, 11, 30), durationSeconds: 45 * 60 },
             // Yesterday
-            { id: 's4', label: '☀️ 早安打卡', startTime: toISO(yesterday, 8, 0), endTime: toISO(yesterday, 8, 0), durationSeconds: 0 },
+            { id: 's4', label: '☀️ 早安打卡', startTime: toISO(yesterday, 8, 0), endTime: toISO(yesterday, 8, 0), durationSeconds: 0, habitId: 'h1', type: 'checkin' },
             { id: 's5', label: '技术方案调研', startTime: toISO(yesterday, 9, 0), endTime: toISO(yesterday, 11, 0), durationSeconds: 120 * 60 },
             { id: 's6', label: '团队会议', startTime: toISO(yesterday, 14, 0), endTime: toISO(yesterday, 15, 0), durationSeconds: 60 * 60 },
-            { id: 's7', label: '🌙 晚安打卡', startTime: toISO(yesterday, 23, 0), endTime: toISO(yesterday, 23, 0), durationSeconds: 0 },
+            { id: 's7', label: '🌙 晚安打卡', startTime: toISO(yesterday, 23, 0), endTime: toISO(yesterday, 23, 0), durationSeconds: 0, habitId: 'h2', type: 'checkin' },
             // Day Before
-            { id: 's8', label: '☀️ 早安打卡', startTime: toISO(dayBefore, 9, 0), endTime: toISO(dayBefore, 9, 0), durationSeconds: 0 },
+            { id: 's8', label: '☀️ 早安打卡', startTime: toISO(dayBefore, 9, 0), endTime: toISO(dayBefore, 9, 0), durationSeconds: 0, habitId: 'h1', type: 'checkin' },
             { id: 's9', label: '阅读源码', startTime: toISO(dayBefore, 10, 0), endTime: toISO(dayBefore, 11, 30), durationSeconds: 90 * 60 },
         ],
         reports: [
@@ -143,6 +147,7 @@ const App: React.FC = () => {
                     merged.storageConfig = { ...initialState.storageConfig, ...parsed.storageConfig };
                 }
                 // Ensure chat history integrity
+                if (!merged.habits) merged.habits = initialState.habits;
                 if (!merged.chatSessions || !Array.isArray(merged.chatSessions) || merged.chatSessions.length === 0) {
                     merged.chatSessions = initialState.chatSessions;
                     merged.currentChatId = initialState.currentChatId;
@@ -404,6 +409,42 @@ const App: React.FC = () => {
                     currentMsgs = [...currentMsgs, toolMsg];
                     setMessages(currentMsgs);
                     updateChatSession(chatId, currentMsgs);
+                } else if (toolCall.name === 'addSession') {
+                    const { label, startTime, endTime, taskTitle } = toolCall.args;
+
+                    // Calculate duration
+                    const start = new Date(startTime);
+                    const end = new Date(endTime);
+                    const durationSeconds = Math.max(0, (end.getTime() - start.getTime()) / 1000);
+
+                    // Find task by title if provided
+                    let taskId: string | undefined = undefined;
+                    if (taskTitle) {
+                        const matchingTask = state.tasks.find(t =>
+                            t.title.toLowerCase().includes(taskTitle.toLowerCase()) ||
+                            taskTitle.toLowerCase().includes(t.title.toLowerCase())
+                        );
+                        if (matchingTask) {
+                            taskId = matchingTask.id;
+                        }
+                    }
+
+                    // Add the session
+                    addManualSession(label, startTime, durationSeconds, taskId);
+
+                    const durationMinutes = Math.floor(durationSeconds / 60);
+                    const taskInfo = taskId ? ` (已关联到待办: ${state.tasks.find(t => t.id === taskId)?.title})` : '';
+                    toolResult = `专注记录 "${label}" 添加成功，时长 ${durationMinutes} 分钟${taskInfo}。`;
+
+                    const toolMsg: ChatMessage = {
+                        id: Date.now().toString() + Math.random(),
+                        role: 'model',
+                        text: `已为你添加专注记录：${label}，时长 ${durationMinutes} 分钟${taskInfo}`,
+                        timestamp: new Date(),
+                    };
+                    currentMsgs = [...currentMsgs, toolMsg];
+                    setMessages(currentMsgs);
+                    updateChatSession(chatId, currentMsgs);
                 }
 
                 // 3. Send result back to LLM
@@ -619,10 +660,10 @@ const App: React.FC = () => {
         }));
     };
 
-    const addGoal = (title: string, deadline: string) => {
+    const addGoal = (title: string, deadline: string, color?: string) => {
         setState(prev => ({
             ...prev,
-            goals: [{ id: Date.now().toString(), title, deadline, completed: false }, ...prev.goals]
+            goals: [{ id: Date.now().toString(), title, deadline, completed: false, color }, ...prev.goals]
         }));
     };
 
@@ -749,6 +790,7 @@ const App: React.FC = () => {
     };
 
     const handleCheckIn = (type: 'morning' | 'night' | 'custom', label: string) => {
+        // Legacy support or direct call
         const now = new Date().toISOString();
         const newSession: Session = {
             id: Date.now().toString(),
@@ -766,11 +808,88 @@ const App: React.FC = () => {
         }));
 
         if (type === 'morning') {
-            triggerAIFeedback(`早安打卡！${label}。请给我今天的早安问候和鼓励。`);
+            triggerAIFeedback(`${label}。`);
         } else if (type === 'night') {
-            triggerAIFeedback(`晚安打卡！${label}。请给我今天的晚安问候和总结。`);
+            triggerAIFeedback(`${label}。`);
         } else {
             triggerAIFeedback(`我刚刚打卡了：${label}。`);
+        }
+    };
+
+    const handleAddHabit = (title: string, color?: string) => {
+        const newHabit: Habit = {
+            id: Date.now().toString(),
+            title,
+            color,
+            createdAt: new Date().toISOString()
+        };
+        setState(prev => ({ ...prev, habits: [...prev.habits, newHabit] }));
+    };
+
+    const handleDeleteHabit = (id: string) => {
+        setState(prev => ({ ...prev, habits: prev.habits.filter(h => h.id !== id) }));
+    };
+
+    const handleUpdateHabit = (id: string, updates: Partial<Habit>) => {
+        setState(prev => ({
+            ...prev,
+            habits: prev.habits.map(h => h.id === id ? { ...h, ...updates } : h)
+        }));
+    };
+
+    const handleToggleCheckIn = (habitId: string, date?: string) => {
+        const targetDate = date || new Date().toISOString().split('T')[0];
+        // Find if checked in today (or target date)
+        // We match by habitId primarily.
+        const existingSession = state.sessions.find(s =>
+            s.habitId === habitId && s.startTime.startsWith(targetDate)
+        );
+
+        if (existingSession) {
+            // Cancel check-in
+            setState(prev => ({
+                ...prev,
+                sessions: prev.sessions.filter(s => s.id !== existingSession.id)
+            }));
+            // No AI feedback for cancel
+        } else {
+            // Check-in
+            // If date is provided (backfill), use 00:01. Else use current time.
+            let startTime: string;
+            if (date) {
+                startTime = `${date}T00:01:00`;
+            } else {
+                startTime = new Date().toISOString();
+            }
+
+            const habit = state.habits.find(h => h.id === habitId);
+            const label = habit ? habit.title : '打卡';
+
+            const newSession: Session = {
+                id: Date.now().toString(),
+                label,
+                startTime,
+                endTime: startTime,
+                durationSeconds: 0,
+                type: 'checkin',
+                habitId
+            };
+
+            setState(prev => ({
+                ...prev,
+                sessions: [newSession, ...prev.sessions]
+            }));
+
+            // Only trigger AI feedback if it's a real-time check-in (no date param)
+            if (!date) {
+                if (label.includes('早安')) {
+                    triggerAIFeedback(`早安打卡！${label}。请给我今天的早安问候和鼓励。`);
+                } else if (label.includes('晚安')) {
+                    triggerAIFeedback(`晚安打卡！${label}。请给我今天的晚安问候和总结。`);
+                } else {
+                    triggerAIFeedback(`我刚刚打卡了：${label}。`);
+                }
+            }
         }
     };
 
@@ -991,6 +1110,12 @@ const App: React.FC = () => {
                         onUpdateSession={updateSession}
                         onRenameSession={renameSession}
                         onDeleteSession={deleteSession}
+
+                        habits={state.habits}
+                        onAddHabit={handleAddHabit}
+                        onUpdateHabit={handleUpdateHabit}
+                        onDeleteHabit={handleDeleteHabit}
+                        onToggleCheckIn={handleToggleCheckIn}
 
                         onGenerateReport={generateReportContent}
                         onSaveReport={(title, content) => addReport(title, content, new Date().toISOString())}
