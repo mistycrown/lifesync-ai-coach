@@ -4,6 +4,8 @@ export interface Task {
   title: string;
   completed: boolean;
   createdAt: string;
+  goalId?: string; // Link to a goal
+  deadline?: string; // Optional deadline for the task
 }
 
 export interface Goal {
@@ -19,6 +21,7 @@ export interface Session {
   startTime: string; // ISO Date string
   endTime: string | null; // Null if currently running
   durationSeconds: number;
+  taskId?: string; // Link to a task
 }
 
 export interface DailyReport {
@@ -89,13 +92,13 @@ export interface ThemeConfig {
 export interface AppState {
   tasks: Task[];
   goals: Goal[];
-  sessions: Session[]; 
+  sessions: Session[];
   reports: DailyReport[]; // Stored daily reports
   activeSessionId: string | null;
   coachSettings: CoachSettings;
   theme: string; // Key for the theme
   storageConfig: StorageConfig; // New: Database settings
-  
+
   // Chat History
   chatSessions: ChatSessionData[];
   currentChatId: string | null;
@@ -108,20 +111,22 @@ export interface DashboardProps {
   reports: DailyReport[];
   activeSessionId: string | null;
   theme: ThemeConfig;
-  
+
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
-  onAddTask: (title: string) => void;
-  
+  onAddTask: (title: string, goalId?: string) => void;
+  onUpdateTask: (id: string, updates: Partial<Task>) => void;
+
   onAddGoal: (title: string, deadline: string) => void;
   onToggleGoal: (id: string) => void;
   onDeleteGoal: (id: string) => void;
   onUpdateGoal: (id: string, title: string, deadline: string) => void;
 
-  onStartSession: (label: string) => void;
+  onStartSession: (label: string, taskId?: string) => void;
   onStopSession: () => void;
-  onAddSession: (label: string, startTime: string, durationSeconds: number) => void;
-  onUpdateSession: (id: string, label: string, startTime: string, endTime: string) => void;
+  onAddSession: (label: string, startTime: string, durationSeconds: number, taskId?: string) => void;
+  onUpdateSession: (id: string, label: string, startTime: string, endTime: string, taskId?: string) => void;
+  onRenameSession: (id: string, newLabel: string) => void;
   onDeleteSession: (id: string) => void;
 
   // Report Props
