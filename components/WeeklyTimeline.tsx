@@ -25,6 +25,7 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
     const [dragType, setDragType] = useState<'start' | 'end' | null>(null);
     const [dragY, setDragY] = useState(0);
     const [tempSessionTimes, setTempSessionTimes] = useState<{ start: Date, end: Date } | null>(null);
+    const isDraggingRef = useRef(false);
 
     const weekDates = useMemo(() => {
         const curr = new Date(currentDate);
@@ -47,6 +48,7 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
         end.setHours(23, 59, 59, 999);
 
         return sessions.filter(s => {
+            if (s.type === 'checkin') return false; // Hide check-ins
             const sDate = new Date(s.startTime);
             return sDate >= start && sDate <= end;
         });
@@ -99,6 +101,7 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
         setDraggingSessionId(session.id);
         setDragType(type);
         setDragY(e.clientY);
+        isDraggingRef.current = false;
 
         const start = new Date(session.startTime);
         const end = session.endTime ? new Date(session.endTime) : new Date(start.getTime() + session.durationSeconds * 1000);
@@ -109,41 +112,30 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
         if (!draggingSessionId || !dragType || !tempSessionTimes || !containerRef.current) return;
 
         const deltaY = e.clientY - dragY;
-        const containerHeight = 1000; // Fixed height from CSS
-        // Calculate minutes delta: (deltaY / containerHeight) * 1440
-        // But we need to be careful about scale. 
-        // Actually, let's look at the relative movement.
-        // The container is scrollable, but the mouse movement is screen relative.
-        // We need to know how many pixels correspond to a minute.
-        // The container inner height is 1000px for 1440 minutes.
-        // So 1 minute = 1000 / 1440 pixels = 0.694 px
-
         const pixelsPerMinute = 1000 / 1440;
         const minutesDelta = deltaY / pixelsPerMinute;
-
-        // Snap to 5 minutes
         const snappedDelta = Math.round(minutesDelta / 5) * 5;
 
-        if (Math.abs(snappedDelta) < 5) return; // Ignore small movements
+        if (Math.abs(snappedDelta) < 5) return;
+
+        isDraggingRef.current = true;
 
         const newTimes = { ...tempSessionTimes };
 
         if (dragType === 'start') {
             newTimes.start = new Date(tempSessionTimes.start.getTime() + snappedDelta * 60000);
-            // Prevent start > end
             if (newTimes.start >= newTimes.end) {
                 newTimes.start = new Date(newTimes.end.getTime() - 5 * 60000);
             }
         } else {
             newTimes.end = new Date(tempSessionTimes.end.getTime() + snappedDelta * 60000);
-            // Prevent end < start
             if (newTimes.end <= newTimes.start) {
                 newTimes.end = new Date(newTimes.start.getTime() + 5 * 60000);
             }
         }
 
         setTempSessionTimes(newTimes);
-        setDragY(e.clientY); // Reset dragY to avoid accumulating large deltas
+        setDragY(e.clientY);
     };
 
     const handleMouseUp = () => {
@@ -157,14 +149,15 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
         setDraggingSessionId(null);
         setDragType(null);
         setTempSessionTimes(null);
+        setTimeout(() => {
+            isDraggingRef.current = false;
+        }, 100);
     };
 
     // Global mouse up/move listener for drag operation
     useEffect(() => {
         if (draggingSessionId) {
             const handleGlobalMouseMove = (e: MouseEvent) => {
-                // We need to adapt the React MouseEvent logic to native MouseEvent
-                // Re-using logic by calling a wrapper or just duplicating simple logic
                 if (!draggingSessionId || !dragType || !tempSessionTimes) return;
 
                 const deltaY = e.clientY - dragY;
@@ -173,6 +166,8 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
                 const snappedDelta = Math.round(minutesDelta / 5) * 5;
 
                 if (Math.abs(snappedDelta) < 5) return;
+
+                isDraggingRef.current = true;
 
                 const newTimes = { ...tempSessionTimes };
                 if (dragType === 'start') {
@@ -198,6 +193,9 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
                 setDraggingSessionId(null);
                 setDragType(null);
                 setTempSessionTimes(null);
+                setTimeout(() => {
+                    isDraggingRef.current = false;
+                }, 100);
             };
 
             window.addEventListener('mousemove', handleGlobalMouseMove);
@@ -272,6 +270,7 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
                                             title={`${session.label} (${Math.floor(session.durationSeconds / 60)}m)`}
                                             onClick={(e) => {
                                                 e.stopPropagation();
+                                                if (isDraggingRef.current) return;
                                                 onSessionClick(session);
                                             }}
                                         >
@@ -279,6 +278,7 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
                                             <div
                                                 className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 hover:bg-black/10 z-20"
                                                 onMouseDown={(e) => handleMouseDown(e, session, 'start')}
+                                                onClick={(e) => e.stopPropagation()}
                                             />
 
                                             <div className="font-bold truncate relative z-10 pointer-events-none">{session.label}</div>
@@ -287,6 +287,7 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
                                             <div
                                                 className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100 hover:bg-black/10 z-20"
                                                 onMouseDown={(e) => handleMouseDown(e, session, 'end')}
+                                                onClick={(e) => e.stopPropagation()}
                                             />
                                         </div>
                                     );

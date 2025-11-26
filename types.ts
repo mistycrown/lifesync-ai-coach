@@ -23,6 +23,8 @@ export interface Session {
   endTime: string | null; // Null if currently running
   durationSeconds: number;
   taskId?: string; // Link to a task
+  type?: 'focus' | 'checkin'; // Default is 'focus'
+  checkInType?: 'morning' | 'night' | 'custom';
 }
 
 export interface DailyReport {
@@ -129,6 +131,7 @@ export interface DashboardProps {
   onUpdateSession: (id: string, label: string, startTime: string, endTime: string, taskId?: string) => void;
   onRenameSession: (id: string, newLabel: string) => void;
   onDeleteSession: (id: string) => void;
+  onCheckIn: (type: 'morning' | 'night' | 'custom', label: string) => void;
 
   // Report Props
   onGenerateReport: (date?: string) => Promise<{ title: string, content: string }>;

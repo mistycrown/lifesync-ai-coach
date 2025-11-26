@@ -33,7 +33,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   onGenerateReport,
   onSaveReport,
   onUpdateReport,
-  onDeleteReport
+  onDeleteReport,
+  onCheckIn,
 }) => {
   const [elapsed, setElapsed] = useState(0);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -46,6 +47,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Log Filtering
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
   const [logViewMode, setLogViewMode] = useState<'list' | 'week'>('list');
+  const [taskViewMode, setTaskViewMode] = useState<'tasks' | 'checkins'>('tasks');
 
   // Manual Add Session State
   const [showAddLog, setShowAddLog] = useState(false);
@@ -142,6 +144,18 @@ const Dashboard: React.FC<DashboardProps> = ({
       onAddGoal(newGoalTitle, newGoalDate);
       setNewGoalTitle('');
       setNewGoalDate(new Date().toISOString().split('T')[0]);
+    }
+  };
+
+  const [customCheckInLabel, setCustomCheckInLabel] = useState('');
+  const [showCustomCheckIn, setShowCustomCheckIn] = useState(false);
+
+  const handleCheckInSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (customCheckInLabel.trim()) {
+      onCheckIn('custom', customCheckInLabel);
+      setCustomCheckInLabel('');
+      setShowCustomCheckIn(false);
     }
   };
 
@@ -348,70 +362,125 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* 2. Tasks */}
+      {/* 2. Tasks & Check-ins */}
       <div className="bg-white rounded-3xl p-6 shadow-float border border-white/50 flex flex-col h-[400px]">
-        <h3 className="text-lg font-bold font-serif text-slate-800 mb-4 flex items-center gap-2">
-          <ListTodo className={`text-${theme.primary}-500`} size={20} /> 待办事项
-        </h3>
-        <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-          {sortedTasks.filter(t => !t.completed).length === 0 && sortedTasks.length > 0 && (
-            <p className="text-slate-400 text-sm text-center py-4">所有任务已完成！干得漂亮。</p>
-          )}
-          {sortedTasks.length === 0 && (
-            <p className="text-slate-400 text-sm text-center py-4">暂无任务。添加一个或咨询你的教练。</p>
-          )}
-          {sortedTasks.map(task => (
-            <div key={task.id} className={`group flex items-center gap-3 p-3 rounded-xl border ${task.completed ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-100 shadow-sm'} transition-all hover:shadow-md cursor-pointer`} onClick={() => setViewingTaskId(task.id)}>
-              <button onClick={(e) => { e.stopPropagation(); onToggleTask(task.id); }} className={`text-slate-300 hover:text-${theme.primary}-500 transition-colors`}>
-                {task.completed ? <CheckCircle className="text-emerald-500" size={20} /> : <Circle size={20} />}
-              </button>
-              <div className="flex-1 flex flex-col">
-                <span className={`text-sm ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
-                  {task.title}
-                </span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  {task.goalId && (
-                    <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
-                      <Flag size={8} /> {goals.find(g => g.id === task.goalId)?.title}
-                    </span>
-                  )}
-                  <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
-                    <Clock size={8} /> {Math.floor(sessions.filter(s => s.taskId === task.id).reduce((acc, s) => acc + s.durationSeconds, 0) / 60)}m
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {!task.completed && !activeSession && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onStartSession(task.title, task.id);
-                    }}
-                    className={`p-1.5 text-slate-400 hover:text-${theme.primary}-600 hover:bg-${theme.primary}-50 rounded transition-colors`}
-                    title="开始专注"
-                  >
-                    <Play size={16} />
-                  </button>
-                )}
-                <button onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold font-serif text-slate-800 flex items-center gap-2">
+            {taskViewMode === 'tasks' ? <ListTodo className={`text-${theme.primary}-500`} size={20} /> : <CheckCircle className={`text-${theme.primary}-500`} size={20} />}
+            {taskViewMode === 'tasks' ? '待办事项' : '每日打卡'}
+          </h3>
+          <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100">
+            <button
+              onClick={() => setTaskViewMode('tasks')}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${taskViewMode === 'tasks' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              待办
+            </button>
+            <button
+              onClick={() => setTaskViewMode('checkins')}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${taskViewMode === 'checkins' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              打卡
+            </button>
+          </div>
         </div>
-        <form onSubmit={handleAddTask} className="mt-4 flex gap-2">
-          <input
-            type="text"
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            placeholder="添加新任务..."
-            className={`flex-1 bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
-          />
-          <button type="submit" className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors">
-            <Plus size={20} />
-          </button>
-        </form>
+
+        {taskViewMode === 'tasks' ? (
+          <>
+            <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+              {sortedTasks.filter(t => !t.completed).length === 0 && sortedTasks.length > 0 && (
+                <p className="text-slate-400 text-sm text-center py-4">所有任务已完成！干得漂亮。</p>
+              )}
+              {sortedTasks.length === 0 && (
+                <p className="text-slate-400 text-sm text-center py-4">暂无任务。添加一个或咨询你的教练。</p>
+              )}
+              {sortedTasks.map(task => (
+                <div key={task.id} className={`group flex items-center gap-3 p-3 rounded-xl border ${task.completed ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-100 shadow-sm'} transition-all hover:shadow-md cursor-pointer`} onClick={() => setViewingTaskId(task.id)}>
+                  <button onClick={(e) => { e.stopPropagation(); onToggleTask(task.id); }} className={`text-slate-300 hover:text-${theme.primary}-500 transition-colors`}>
+                    {task.completed ? <CheckCircle className="text-emerald-500" size={20} /> : <Circle size={20} />}
+                  </button>
+                  <div className="flex-1 flex flex-col">
+                    <span className={`text-sm ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                      {task.title}
+                    </span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {task.goalId && (
+                        <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
+                          <Flag size={8} /> {goals.find(g => g.id === task.goalId)?.title}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
+                        <Clock size={8} /> {Math.floor(sessions.filter(s => s.taskId === task.id).reduce((acc, s) => acc + s.durationSeconds, 0) / 60)}m
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {!task.completed && !activeSession && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onStartSession(task.title, task.id);
+                        }}
+                        className={`p-1.5 text-slate-400 hover:text-${theme.primary}-600 hover:bg-${theme.primary}-50 rounded transition-colors`}
+                        title="开始专注"
+                      >
+                        <Play size={14} />
+                      </button>
+                    )}
+                    <button onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <form onSubmit={handleAddTask} className="mt-4 flex gap-2">
+              <input
+                type="text"
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                placeholder="添加新任务..."
+                className={`flex-1 bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
+              />
+              <button type="submit" className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors">
+                <Plus size={20} />
+              </button>
+            </form>
+          </>
+        ) : (
+          <div className="flex flex-col h-full">
+            <div className="flex-1 flex flex-col justify-center gap-4">
+              <button
+                onClick={() => onCheckIn('morning', '早安')}
+                className="p-4 rounded-xl bg-orange-50 text-orange-600 hover:bg-orange-100 hover:scale-105 transition-all flex items-center gap-4 border border-orange-100 shadow-sm"
+              >
+                <div className="p-3 bg-white rounded-full shadow-sm text-orange-500"><Sun size={24} /></div>
+                <div className="text-left">
+                  <span className="font-bold block text-lg">早安打卡</span>
+                  <span className="text-xs text-orange-400 opacity-80">开启美好的一天</span>
+                </div>
+              </button>
+              <button
+                onClick={() => onCheckIn('night', '晚安')}
+                className="p-4 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:scale-105 transition-all flex items-center gap-4 border border-indigo-100 shadow-sm"
+              >
+                <div className="p-3 bg-white rounded-full shadow-sm text-indigo-500"><Moon size={24} /></div>
+                <div className="text-left">
+                  <span className="font-bold block text-lg">晚安打卡</span>
+                  <span className="text-xs text-indigo-400 opacity-80">总结今日，好梦</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setShowCustomCheckIn(true)}
+                className="p-4 rounded-xl bg-slate-50 text-slate-600 hover:bg-slate-100 hover:scale-105 transition-all flex items-center gap-4 border border-slate-100 shadow-sm"
+              >
+                <div className="p-3 bg-white rounded-full shadow-sm text-slate-500"><Plus size={24} /></div>
+                <div className="text-left">
+                  <span className="font-bold block text-lg">自定义打卡</span>
+                  <span className="text-xs text-slate-400 opacity-80">记录生活点滴</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 3. Goals & Deadlines */}
@@ -723,12 +792,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </td>
                       <td className="px-4 py-3 text-slate-500">
                         {new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        {!isMorning && !isNight && (
+                        {session.type !== 'checkin' && !isMorning && !isNight && (
                           <>
                             {' - '}
                             {session.endTime ? new Date(session.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
                             <span className="ml-2 font-mono text-xs opacity-70">({Math.floor(session.durationSeconds / 60)}分钟)</span>
                           </>
+                        )}
+                        {session.type === 'checkin' && (
+                          <span className="ml-2 text-xs px-1.5 py-0.5 bg-slate-100 rounded text-slate-500">打卡</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -885,29 +957,33 @@ const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Modals */}
-      {viewingTaskId && (
-        <TaskDetailsModal
-          task={tasks.find(t => t.id === viewingTaskId)!}
-          goals={goals}
-          sessions={sessions}
-          theme={theme}
-          onClose={() => setViewingTaskId(null)}
-          onUpdateTask={onUpdateTask}
-        />
-      )}
+      {
+        viewingTaskId && (
+          <TaskDetailsModal
+            task={tasks.find(t => t.id === viewingTaskId)!}
+            goals={goals}
+            sessions={sessions}
+            theme={theme}
+            onClose={() => setViewingTaskId(null)}
+            onUpdateTask={onUpdateTask}
+          />
+        )
+      }
 
-      {viewingGoalId && (
-        <GoalDetailsModal
-          goal={goals.find(g => g.id === viewingGoalId)!}
-          tasks={tasks}
-          sessions={sessions}
-          theme={theme}
-          onClose={() => setViewingGoalId(null)}
-          onUpdateGoal={onUpdateGoal}
-        />
-      )}
+      {
+        viewingGoalId && (
+          <GoalDetailsModal
+            goal={goals.find(g => g.id === viewingGoalId)!}
+            tasks={tasks}
+            sessions={sessions}
+            theme={theme}
+            onClose={() => setViewingGoalId(null)}
+            onUpdateGoal={onUpdateGoal}
+          />
+        )
+      }
 
-    </div>
+    </div >
   );
 };
 

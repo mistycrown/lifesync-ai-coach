@@ -348,11 +348,13 @@ const App: React.FC = () => {
         const isMorning = text.includes("早安");
         const isNight = text.includes("晚安");
 
-        if (isMorning) {
-            addManualSession("☀️ 早安打卡", new Date().toISOString(), 0);
-        }
-        if (isNight) {
-            addManualSession("🌙 晚安打卡", new Date().toISOString(), 0);
+        if (!isAutoTrigger) {
+            if (isMorning) {
+                addManualSession("☀️ 早安打卡", new Date().toISOString(), 0);
+            }
+            if (isNight) {
+                addManualSession("🌙 晚安打卡", new Date().toISOString(), 0);
+            }
         }
 
         try {
@@ -746,6 +748,32 @@ const App: React.FC = () => {
         }));
     };
 
+    const handleCheckIn = (type: 'morning' | 'night' | 'custom', label: string) => {
+        const now = new Date().toISOString();
+        const newSession: Session = {
+            id: Date.now().toString(),
+            label,
+            startTime: now,
+            endTime: now,
+            durationSeconds: 0,
+            type: 'checkin',
+            checkInType: type
+        };
+
+        setState(prev => ({
+            ...prev,
+            sessions: [newSession, ...prev.sessions]
+        }));
+
+        if (type === 'morning') {
+            triggerAIFeedback(`早安打卡！${label}。请给我今天的早安问候和鼓励。`);
+        } else if (type === 'night') {
+            triggerAIFeedback(`晚安打卡！${label}。请给我今天的晚安问候和总结。`);
+        } else {
+            triggerAIFeedback(`我刚刚打卡了：${label}。`);
+        }
+    };
+
     const updateSession = (id: string, label: string, startTime: string, endTime: string, taskId?: string) => {
         const start = new Date(startTime);
         const end = new Date(endTime);
@@ -968,6 +996,7 @@ const App: React.FC = () => {
                         onSaveReport={(title, content) => addReport(title, content, new Date().toISOString())}
                         onUpdateReport={updateReport}
                         onDeleteReport={deleteReport}
+                        onCheckIn={handleCheckIn}
                     />
                 </div>
             </div>
