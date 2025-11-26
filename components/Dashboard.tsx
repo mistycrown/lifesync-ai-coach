@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { CalendarPopover } from './Calendar';
 import { Play, Square, CheckCircle, Circle, Clock, Calendar, Trash2, Plus, Flag, ListTodo, FileText, Edit2, Save, X, Loader2, ChevronDown, ChevronRight, Check, History, ChevronLeft, Sun, Moon, ScrollText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Task, Goal, Session, DailyReport, DashboardProps } from '../types';
@@ -424,45 +424,32 @@ const Dashboard: React.FC<DashboardProps> = ({
           {sortedGoals.map(goal => (
             <div key={goal.id} className={`p-4 rounded-2xl border transition-all ${goal.completed ? 'bg-slate-50 border-slate-100 opacity-70' : `border-${theme.primary}-100 bg-gradient-to-br from-${theme.primary}-50/50 to-white shadow-sm hover:shadow-md`} cursor-pointer`} onClick={() => setViewingGoalId(goal.id)}>
 
-              {editingGoalId === goal.id ? (
-                <div className="flex flex-col gap-2">
-                  <input
-                    type="text"
-                    value={editGoalTitle}
-                    onChange={(e) => setEditGoalTitle(e.target.value)}
-                    className={`bg-white text-slate-900 border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-${theme.primary}-500`}
-                  />
-                  <div className="flex gap-2">
-                    <input
-                      type="date"
-                      value={editGoalDate}
-                      onChange={(e) => setEditGoalDate(e.target.value)}
-                      className={`bg-white text-slate-900 border border-slate-200 rounded px-2 py-1 text-sm flex-1 focus:outline-none focus:border-${theme.primary}-500`}
-                    />
-                    <button onClick={saveEditingGoal} className={`p-1.5 bg-${theme.primary}-600 text-white rounded hover:bg-${theme.primary}-700`}><Save size={14} /></button>
-                    <button onClick={() => setEditingGoalId(null)} className="p-1.5 bg-slate-200 text-slate-600 rounded hover:bg-slate-300"><X size={14} /></button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex justify-between items-start group">
-                  <div className="flex items-start gap-3 flex-1">
-                    <button onClick={(e) => { e.stopPropagation(); onToggleGoal(goal.id); }} className={`mt-0.5 text-slate-400 hover:text-${theme.primary}-600 transition-colors`}>
-                      {goal.completed ? <CheckCircle className="text-emerald-500" size={18} /> : <Circle size={18} />}
-                    </button>
-                    <div>
-                      <h4 className={`font-medium text-sm ${goal.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{goal.title}</h4>
-                      <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
-                        <Calendar size={12} />
-                        {new Date(goal.deadline).toLocaleDateString()}
-                      </div>
+              <div className="flex justify-between items-start group">
+                <div className="flex items-start gap-3 flex-1">
+                  <button onClick={(e) => { e.stopPropagation(); onToggleGoal(goal.id); }} className={`mt-0.5 text-slate-400 hover:text-${theme.primary}-600 transition-colors`}>
+                    {goal.completed ? <CheckCircle className="text-emerald-500" size={18} /> : <Circle size={18} />}
+                  </button>
+                  <div>
+                    <h4 className={`font-medium text-sm ${goal.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{goal.title}</h4>
+                    <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
+                      <Calendar size={12} className={`text-${theme.primary}-500`} />
+                      {new Date(goal.deadline).toLocaleDateString()}
+                      <span className="ml-2 flex items-center gap-1 text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
+                        <Clock size={8} />
+                        {Math.floor(
+                          sessions.filter(s => {
+                            const task = tasks.find(t => t.id === s.taskId);
+                            return task && task.goalId === goal.id;
+                          }).reduce((acc, s) => acc + s.durationSeconds, 0) / 60
+                        )}m
+                      </span>
                     </div>
                   </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={(e) => { e.stopPropagation(); startEditingGoal(goal); }} className={`p-1.5 text-slate-400 hover:text-${theme.primary}-600 hover:bg-${theme.primary}-50 rounded transition-colors`}><Edit2 size={14} /></button>
-                    <button onClick={(e) => { e.stopPropagation(); onDeleteGoal(goal.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14} /></button>
-                  </div>
                 </div>
-              )}
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={(e) => { e.stopPropagation(); onDeleteGoal(goal.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14} /></button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -475,12 +462,9 @@ const Dashboard: React.FC<DashboardProps> = ({
             className={`bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
           />
           <div className="flex gap-2">
-            <input
-              type="date"
-              value={newGoalDate}
-              onChange={(e) => setNewGoalDate(e.target.value)}
-              className={`flex-1 bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white text-slate-600`}
-            />
+            <div className="flex-1">
+              <CalendarPopover value={newGoalDate} onChange={setNewGoalDate} theme={theme} />
+            </div>
             <button type="submit" className="px-4 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-sm font-medium">
               添加
             </button>
@@ -501,12 +485,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <ChevronLeft size={16} />
             </button>
             <div className="relative">
-              <input
-                type="date"
-                value={logDate}
-                onChange={(e) => setLogDate(e.target.value)}
-                className="bg-transparent text-slate-800 border-none text-sm font-medium focus:ring-0 cursor-pointer w-[110px] text-center"
-              />
+              <CalendarPopover value={logDate} onChange={setLogDate} theme={theme} />
             </div>
             <button
               onClick={() => setLogDate(new Date().toISOString().split('T')[0])}
@@ -548,13 +527,28 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 <div>
                   <label className="block text-sm text-slate-600 mb-1">开始时间</label>
-                  <input
-                    required
-                    type="datetime-local"
-                    className={`w-full border border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-900 focus:outline-none focus:border-${theme.primary}-500`}
-                    value={manualLogStart}
-                    onChange={(e) => setManualLogStart(e.target.value)}
-                  />
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <CalendarPopover
+                        value={manualLogStart.split('T')[0]}
+                        onChange={(date) => {
+                          const time = manualLogStart.split('T')[1] || '00:00';
+                          setManualLogStart(`${date}T${time}`);
+                        }}
+                        theme={theme}
+                      />
+                    </div>
+                    <input
+                      required
+                      type="time"
+                      className={`border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 text-slate-900 focus:outline-none focus:border-${theme.primary}-500`}
+                      value={manualLogStart.split('T')[1] || ''}
+                      onChange={(e) => {
+                        const date = manualLogStart.split('T')[0];
+                        setManualLogStart(`${date}T${e.target.value}`);
+                      }}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm text-slate-600 mb-1">时长 (分钟)</label>
@@ -875,6 +869,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           sessions={sessions}
           theme={theme}
           onClose={() => setViewingGoalId(null)}
+          onUpdateGoal={onUpdateGoal}
         />
       )}
 
@@ -965,8 +960,11 @@ const TaskDetailsModal: React.FC<{
                 taskSessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()).map(s => (
                   <div key={s.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-100 text-sm">
                     <div className="flex flex-col">
-                      <span className="font-medium text-slate-700">{new Date(s.startTime).toLocaleDateString()}</span>
-                      <span className="text-xs text-slate-400">{new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="font-medium text-slate-700">{s.label}</span>
+                      <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                        <span>{new Date(s.startTime).toLocaleDateString()}</span>
+                        <span>{new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
                     </div>
                     <span className="font-mono text-slate-600">{Math.floor(s.durationSeconds / 60)} 分钟</span>
                   </div>
@@ -986,7 +984,8 @@ const GoalDetailsModal: React.FC<{
   sessions: Session[]; // Need sessions to calculate total time from linked tasks
   theme: any;
   onClose: () => void;
-}> = ({ goal, tasks, sessions, theme, onClose }) => {
+  onUpdateGoal: (id: string, title: string, deadline: string) => void;
+}> = ({ goal, tasks, sessions, theme, onClose, onUpdateGoal }) => {
   // Filter tasks linked to this goal
   const linkedTasks = tasks.filter(t => t.goalId === goal.id);
 
@@ -1003,20 +1002,59 @@ const GoalDetailsModal: React.FC<{
     return `${h}小时 ${m}分钟`;
   };
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(goal.title);
+  const [editDate, setEditDate] = useState(goal.deadline);
+
+  const handleSave = () => {
+    if (editTitle.trim() && editDate) {
+      onUpdateGoal(goal.id, editTitle, editDate);
+      setIsEditing(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b border-slate-100 flex justify-between items-start">
-          <div>
-            <h3 className="text-xl font-bold font-serif text-slate-800">{goal.title}</h3>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`px-2 py-0.5 rounded text-xs font-bold ${goal.completed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                {goal.completed ? '已达成' : '进行中'}
-              </span>
-              <span className="text-xs text-slate-400 flex items-center gap-1">
-                <Calendar size={12} /> 截止: {new Date(goal.deadline).toLocaleDateString()}
-              </span>
-            </div>
+          <div className="flex-1 mr-4">
+            {isEditing ? (
+              <div className="space-y-3">
+                <input
+                  className={`w-full text-xl font-bold font-serif text-slate-800 border-b-2 border-${theme.primary}-200 focus:border-${theme.primary}-500 focus:outline-none bg-transparent`}
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  autoFocus
+                />
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-500">截止日期:</span>
+                  <div className="flex-1">
+                    <CalendarPopover value={editDate} onChange={setEditDate} theme={theme} />
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button onClick={handleSave} className={`px-3 py-1 bg-${theme.primary}-600 text-white text-xs rounded hover:bg-${theme.primary}-700`}>保存</button>
+                  <button onClick={() => setIsEditing(false)} className="px-3 py-1 bg-slate-100 text-slate-600 text-xs rounded hover:bg-slate-200">取消</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 group">
+                  <h3 className="text-xl font-bold font-serif text-slate-800">{goal.title}</h3>
+                  <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-opacity">
+                    <Edit2 size={16} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${goal.completed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {goal.completed ? '已达成' : '进行中'}
+                  </span>
+                  <span className="text-xs text-slate-400 flex items-center gap-1">
+                    <Calendar size={12} /> 截止: {new Date(goal.deadline).toLocaleDateString()}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>

@@ -98,7 +98,7 @@ class OpenAICompatibleClient {
 
   async sendMessage(content: string, isToolResponse = false, toolCallId?: string, toolName?: string): Promise<{ response: string, toolCalls?: { name: string, args: any }[] }> {
     const url = `${this.config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
-    
+
     // 1. Update History
     if (isToolResponse && toolCallId) {
       this.history.push({
@@ -145,17 +145,17 @@ class OpenAICompatibleClient {
       const toolCalls: { name: string, args: any, id: string }[] = [];
       if (message.tool_calls) {
         for (const tc of message.tool_calls) {
-            if (tc.type === 'function') {
-                try {
-                    toolCalls.push({
-                        name: tc.function.name,
-                        args: JSON.parse(tc.function.arguments),
-                        id: tc.id
-                    });
-                } catch (e) {
-                    console.error("Failed to parse tool args", e);
-                }
+          if (tc.type === 'function') {
+            try {
+              toolCalls.push({
+                name: tc.function.name,
+                args: JSON.parse(tc.function.arguments),
+                id: tc.id
+              });
+            } catch (e) {
+              console.error("Failed to parse tool args", e);
             }
+          }
         }
       }
 
@@ -178,28 +178,28 @@ export class CoachService {
   private openaiClient: OpenAICompatibleClient | null = null;
   private currentConfig: ModelConfig | null = null;
 
-  constructor() {}
+  constructor() { }
 
   private getSystemInstruction(state: AppState): string {
     const { coachSettings, tasks, goals, sessions, activeSessionId } = state;
-    
+
     // Calculate daily stats for context
     const today = new Date().toDateString();
     const todaySessions = sessions.filter(s => new Date(s.startTime).toDateString() === today && s.endTime);
-    
+
     // Format Lists
     const pendingTasks = tasks.filter(t => !t.completed).map(t => `- ${t.title}`).join('\n') || "(无)";
     const activeGoals = goals.filter(g => !g.completed).map(g => `- ${g.title} (截止: ${g.deadline})`).join('\n') || "(无)";
     const logs = todaySessions.map(s => `- ${s.label}: ${Math.floor(s.durationSeconds / 60)}分钟`).join('\n') || "(无)";
-    
+
     // Active Task
     const activeSession = sessions.find(s => s.id === activeSessionId);
     const activeTask = activeSession ? activeSession.label : "(当前没有正在进行的工作)";
 
     // Determine the core instruction
-    const personalityInstruction = coachSettings.customInstruction && coachSettings.customInstruction.trim() !== '' 
-        ? coachSettings.customInstruction 
-        : "你是一个乐于助人的AI教练。";
+    const personalityInstruction = coachSettings.customInstruction && coachSettings.customInstruction.trim() !== ''
+      ? coachSettings.customInstruction
+      : "你是一个乐于助人的AI教练。";
 
     const basePrompt = `
 你是一个由用户自定义的“AI人生教练”，你的名字叫 "${coachSettings.name}"。
@@ -266,15 +266,15 @@ ${logs}
     }
   }
 
-  async sendMessage(message: string, currentState: AppState): Promise<{ 
-    response: string, 
-    toolCalls?: { name: string, args: any, id?: string }[] 
+  async sendMessage(message: string, currentState: AppState): Promise<{
+    response: string,
+    toolCalls?: { name: string, args: any, id?: string }[]
   }> {
     // Ensure chat is initialized if switching configs or first run
     if (!this.currentConfig || JSON.stringify(this.currentConfig) !== JSON.stringify(currentState.coachSettings.modelConfig)) {
-        this.startChat(currentState);
+      this.startChat(currentState);
     }
-    
+
     try {
       if (this.currentConfig?.provider === 'gemini') {
         const result = await this.geminiChat!.sendMessage({ message });
@@ -289,24 +289,24 @@ ${logs}
   }
 
   async sendToolResponse(
-    functionName: string, 
+    functionName: string,
     functionResponse: any,
     toolId?: string // Required for OpenAI
   ): Promise<{ response: string, toolCalls?: { name: string, args: any, id?: string }[] }> {
-    
+
     if (this.currentConfig?.provider === 'gemini') {
-        const parts = [{
-          functionResponse: {
-            name: functionName,
-            response: { result: functionResponse } 
-          }
-        }];
-        const result = await this.geminiChat!.sendMessage({ message: parts as any }); 
-        return this.processGeminiResponse(result);
+      const parts = [{
+        functionResponse: {
+          name: functionName,
+          response: { result: functionResponse }
+        }
+      }];
+      const result = await this.geminiChat!.sendMessage({ message: parts as any });
+      return this.processGeminiResponse(result);
     } else {
-        // OpenAI requires the tool_call_id
-        if (!toolId) throw new Error("Tool ID required for OpenAI providers");
-        return await this.openaiClient!.sendMessage(JSON.stringify({ result: functionResponse }), true, toolId, functionName);
+      // OpenAI requires the tool_call_id
+      if (!toolId) throw new Error("Tool ID required for OpenAI providers");
+      return await this.openaiClient!.sendMessage(JSON.stringify({ result: functionResponse }), true, toolId, functionName);
     }
   }
 
@@ -315,7 +315,7 @@ ${logs}
     if (config.provider === 'gemini') {
       const apiKey = config.apiKey || process.env.API_KEY;
       if (!apiKey) throw new Error("未配置 API Key");
-      
+
       const ai = new GoogleGenAI({ apiKey });
       // We perform a simple generation to test the key and model
       await ai.models.generateContent({
@@ -330,9 +330,9 @@ ${logs}
     }
   }
 
-  private processGeminiResponse(response: GenerateContentResponse): { 
-    response: string, 
-    toolCalls?: { name: string, args: any }[] 
+  private processGeminiResponse(response: GenerateContentResponse): {
+    response: string,
+    toolCalls?: { name: string, args: any }[]
   } {
     const text = response.text || "";
     const toolCalls: { name: string, args: any }[] = [];
@@ -356,42 +356,45 @@ ${logs}
   async generateDailyReport(state: AppState, targetDateStr?: string): Promise<{ title: string, content: string }> {
     const { sessions, tasks, goals, coachSettings } = state;
     const config = coachSettings.modelConfig;
-    
+
     // Determine the target date (default to today)
     const targetDate = targetDateStr ? new Date(targetDateStr) : new Date();
-    const targetDateString = targetDate.toDateString(); 
-    
+    const targetDateString = targetDate.toDateString();
+
     // 1. Calculate Objective Data
     const targetSessions = sessions.filter(s => new Date(s.startTime).toDateString() === targetDateString && s.endTime);
     const completedTasks = tasks.filter(t => t.completed && new Date(t.createdAt).toDateString() === targetDateString);
     const createdTasks = tasks.filter(t => new Date(t.createdAt).toDateString() === targetDateString);
     const totalDurationMinutes = Math.floor(targetSessions.reduce((acc, s) => acc + s.durationSeconds, 0) / 60);
-    
-    const taskDetails = targetSessions.length > 0 
-        ? targetSessions.map(s => {
-            const start = new Date(s.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            const duration = Math.floor(s.durationSeconds / 60);
-            return `- ${s.label} (${start}, ${duration}分钟)`;
-          }).join('\n')
-        : "无记录";
+
+    const taskDetails = targetSessions.length > 0
+      ? targetSessions.map(s => {
+        const start = new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const duration = Math.floor(s.durationSeconds / 60);
+        return `- ${s.label} (${start}, ${duration}分钟)`;
+      }).join('\n')
+      : "无记录";
 
     const tasksSummary = createdTasks.length > 0
-        ? createdTasks.map(t => `- [${t.completed ? '已完成' : '未完成'}] ${t.title}`).join('\n')
-        : "无新增任务";
+      ? createdTasks.map(t => `- [${t.completed ? '已完成' : '未完成'}] ${t.title}`).join('\n')
+      : "无新增任务";
 
     const goalsList = goals.map(g => {
-        const deadline = new Date(g.deadline);
-        const diffTime = Math.abs(deadline.getTime() - targetDate.getTime()); 
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-        return `- ${g.title} (截止: ${g.deadline}, 剩余${diffDays}天)`;
+      const deadline = new Date(g.deadline);
+      const diffTime = Math.abs(deadline.getTime() - targetDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return `- ${g.title} (截止: ${g.deadline}, 剩余${diffDays}天)`;
     }).join('\n') || "暂无设定目标";
 
 
     const objectiveSummary = `
-### 数据客观总结
+### 数据总结
 📅 **日期**：${targetDate.getFullYear()}年${targetDate.getMonth() + 1}月${targetDate.getDate()}日
+
 ⏱️ **总专注时长**：${totalDurationMinutes}分钟
+
 ✅ **当日完成(创建)任务数**：${completedTasks.length}
+
 📝 **活动日志明细**：
 ${taskDetails}
 
@@ -402,64 +405,61 @@ ${tasksSummary}
 ${goalsList}
     `.trim();
 
-    let prompt = `
-    你正在生成一份用户的每日日报。
-    请严格按照以下步骤执行，并返回一个合法的 JSON 对象。
+    const prompt = `
+    你是一位专业的AI人生教练。请根据以下用户的今日活动数据，进行简短、有洞察力的点评，并给出明天的建议。
 
-    **步骤一**：基于下方的客观数据，构思一个富有文学感、优美且总结性强的**标题**（4-10个字）。标题不要包含“日报”二字，要像散文诗一样。例如：“静水流深的一天”、“在挑战中前行”、“微小的进步”。
-    
-    **步骤二**：
-    1. 你的身份是 "${coachSettings.name}"，严格遵循风格：${coachSettings.customInstruction}
-    2. 生成日报正文：
-       - 首先**原封不动**保留下方的【客观数据总结】。
-       - 换行后，添加 "---" 分隔线。
-       - 换行后，基于数据写一段【AI教练点评】。结合人设，如果专注时间短或未完成任务多，请根据人设风格进行批评或鼓励；如果表现好，给予赞赏。
-       - 最后给出一句针对明天的简短行动建议。
-
-    【客观数据总结】：
+    【用户今日数据】：
     ${objectiveSummary}
 
-    ${coachSettings.customReportInstruction ? `特别要求: ${coachSettings.customReportInstruction}` : ''}
+    【你的任务】：
+    1. **点评**：根据数据（专注时长、任务完成情况、目标进度），分析用户今天的表现。
+       - 如果表现好（专注时间长、任务全完成），给予热情鼓励和肯定。
+       - 如果表现一般或有待改进（专注短、任务未完成），给予温柔的鞭策和改进建议。
+       - 结合你的“人设”风格：${coachSettings.customInstruction}
+    2. **建议**：给出一句针对明天的具体行动建议。
 
-    请返回纯 JSON 格式：
+    【输出格式】：
+    请直接返回一个JSON对象，不要包含markdown格式标记（如 \`\`\`json ... \`\`\`），格式如下：
     {
-      "title": "你的标题",
-      "content": "你的完整日报内容（包含客观数据+点评）"
+        "title": "日报标题 (例如：'今日复盘：稳步前行' 或 '今日复盘：需要调整状态')",
+        "commentary": "你的点评内容..."
     }
     `;
 
-    // One-off generation based on provider
     let responseText = "{}";
 
     if (config.provider === 'gemini') {
-        const apiKey = config.apiKey || process.env.API_KEY || '';
-        const aiOneOff = new GoogleGenAI({ apiKey });
-        const response = await aiOneOff.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: { responseMimeType: 'application/json' }
-        });
-        responseText = response.text || "{}";
+      const apiKey = config.apiKey || process.env.API_KEY || '';
+      const aiOneOff = new GoogleGenAI({ apiKey });
+      const response = await aiOneOff.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: { responseMimeType: 'application/json' }
+      });
+      responseText = response.text || "{}";
     } else {
-        // Use generic client for report generation
-        const client = new OpenAICompatibleClient(config);
-        const result = await client.sendMessage(prompt + "\n\nResponse must be valid JSON.");
-        responseText = result.response;
-        // Basic JSON cleanup if model returns markdown block
-        responseText = responseText.replace(/^```json/g, '').replace(/^```/g, '').replace(/```$/g, '');
+      // Use generic client for report generation
+      const client = new OpenAICompatibleClient(config);
+      const result = await client.sendMessage(prompt + "\n\nResponse must be valid JSON.");
+      responseText = result.response;
+      // Basic JSON cleanup if model returns markdown block
+      responseText = responseText.replace(/^```json/g, '').replace(/^```/g, '').replace(/```$/g, '');
     }
 
     try {
-        const json = JSON.parse(responseText);
-        return {
-            title: json.title || "今日复盘",
-            content: json.content || "生成失败"
-        };
+      const json = JSON.parse(responseText);
+      const finalContent = `### 📊 数据总结\n\n${objectiveSummary}\n\n---\n\n### 💡 教练点评\n\n${json.commentary || "（AI未生成点评）"}`;
+
+      return {
+        title: json.title || "今日复盘",
+        content: finalContent
+      };
     } catch (e) {
-        return {
-            title: "今日总结",
-            content: responseText
-        };
+      return {
+        title: "今日总结",
+        content: `### 数据总结\n\n${objectiveSummary}\n\n---\n\n### 教练点评\n\n(生成出错，请重试)\n\n原始返回: ${responseText}`
+      };
     }
   }
 }
+
