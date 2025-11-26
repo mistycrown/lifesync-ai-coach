@@ -14,6 +14,10 @@ const addTaskDeclaration: FunctionDeclaration = {
         type: Type.STRING,
         description: 'The content or title of the task.',
       },
+      goalTitle: {
+        type: Type.STRING,
+        description: 'Optional. If this task should be linked to a specific goal, provide the exact goal title.',
+      },
     },
     required: ['title'],
   },
@@ -76,7 +80,8 @@ const getOpenAITools = () => {
         parameters: {
           type: "object",
           properties: {
-            title: { type: "string", description: "The content or title of the task." }
+            title: { type: "string", description: "The content or title of the task." },
+            goalTitle: { type: "string", description: "Optional. If this task should be linked to a specific goal, provide the exact goal title." },
           },
           required: ["title"]
         }
@@ -284,11 +289,20 @@ ${logs}
 4. 当用户说"晚安"时，请检查"尚未完成的待办事项"和"今日时间轴记录"（包括打卡）。如果还有待办未完成，根据你的风格指出；如果完成了，给予肯定。最后给予温暖的结束语。
 5. 你有权限操作用户的列表和时间轴。如果你在对话中决定添加任务、目标或专注记录，请务必使用提供的工具 (Tools)。
 6. **补记录功能**：当用户提到过去的活动（例如"4点到5点看书"、"上午写了2小时代码"），使用 addSession 工具为他们添加专注记录。如果该活动与某个待办事项相关，在调用工具时提供 taskTitle 参数以自动关联。
+7. **智能关联目标**：当用户添加新任务时，智能分析该任务是否与现有的长期目标相关。使用 addTask 工具的 goalTitle 参数来关联。例如：
+   - 如果用户说"阅读XX书"、"阅读XX教程"，并且长期目标中有"阅读10本书"、"读书计划"等，应该关联到该目标
+   - 如果用户说"完成XX报告"，并且有"Q4业绩目标"，应该关联
+   - 使用模糊匹配，goalTitle 只需提供目标的关键词即可（如"阅读"、"读书"等）
 
 【防重复机制】：
 - 当用户说"我添加了..."、"我设定了..."或"我完成了..."时，这表示用户已经手动在界面完成了操作。
 - 在这种情况下，**不要**再次调用工具添加任务，否则会导致数据重复。
 - 你只需要针对用户的行为给予口头鼓励或点评即可。
+
+【回复与工具分离】：
+- 你的回复应该是情感支持、鼓励、建议等内容。
+- 不要在回复中重复说"已添加XX"，因为系统会自动显示操作消息。
+- 例如，用户要求添加任务后，你只需说"好的！加油完成~"，不要说"已为你添加待办任务：XX"。
     `;
 
     return basePrompt;

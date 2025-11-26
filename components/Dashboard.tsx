@@ -1723,7 +1723,7 @@ const HabitDetailsModal: React.FC<{
                               ${isChecked
                       ? `text-white shadow-md`
                       : isToday
-                        ? `bg-${theme.primary}-50 text-${theme.primary}-600 border-2 border-${theme.primary}-200`
+                        ? `border-2 border-slate-300 bg-white text-slate-600`
                         : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                     }
                               ${isFuture ? 'opacity-30 cursor-not-allowed' : ''}

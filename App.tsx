@@ -379,16 +379,36 @@ const App: React.FC = () => {
 
                 // Execute Tool
                 if (toolCall.name === 'addTask') {
-                    const { title } = toolCall.args;
-                    addTask(title);
-                    toolResult = `任务 "${title}" 添加成功。`;
+                    const { title, goalTitle } = toolCall.args;
+
+                    // Find goal by title if provided
+                    let goalId: string | undefined = undefined;
+                    let linkedGoalName: string | undefined = undefined;
+                    if (goalTitle) {
+                        const matchingGoal = state.goals.find(g =>
+                            g.title.toLowerCase().includes(goalTitle.toLowerCase()) ||
+                            goalTitle.toLowerCase().includes(g.title.toLowerCase())
+                        );
+                        if (matchingGoal) {
+                            goalId = matchingGoal.id;
+                            linkedGoalName = matchingGoal.title;
+                        }
+                    }
+
+                    // Add task with optional goal link (skip AI feedback since we have tool message)
+                    addTask(title, goalId, true);
+                    toolResult = goalId
+                        ? `任务 "${title}" 添加成功并关联到目标 "${linkedGoalName}"。`
+                        : `任务 "${title}" 添加成功。`;
 
                     const toolMsg: ChatMessage = {
                         id: Date.now().toString() + Math.random(),
                         role: 'model',
-                        text: `已为你添加待办任务：${title}`,
+                        text: linkedGoalName
+                            ? `已添加待办任务：${title}，关联至目标：${linkedGoalName}`
+                            : `已添加待办任务：${title}`,
                         timestamp: new Date(),
-                        actionData: { type: 'ADD_TASK', title }
+                        actionData: { type: 'ADD_TASK', title, details: linkedGoalName }
                     };
                     currentMsgs = [...currentMsgs, toolMsg];
                     setMessages(currentMsgs);
@@ -419,6 +439,7 @@ const App: React.FC = () => {
 
                     // Find task by title if provided
                     let taskId: string | undefined = undefined;
+                    let linkedTaskName: string | undefined = undefined;
                     if (taskTitle) {
                         const matchingTask = state.tasks.find(t =>
                             t.title.toLowerCase().includes(taskTitle.toLowerCase()) ||
@@ -426,6 +447,7 @@ const App: React.FC = () => {
                         );
                         if (matchingTask) {
                             taskId = matchingTask.id;
+                            linkedTaskName = matchingTask.title;
                         }
                     }
 
@@ -433,14 +455,18 @@ const App: React.FC = () => {
                     addManualSession(label, startTime, durationSeconds, taskId);
 
                     const durationMinutes = Math.floor(durationSeconds / 60);
-                    const taskInfo = taskId ? ` (已关联到待办: ${state.tasks.find(t => t.id === taskId)?.title})` : '';
-                    toolResult = `专注记录 "${label}" 添加成功，时长 ${durationMinutes} 分钟${taskInfo}。`;
+                    toolResult = taskId
+                        ? `专注记录 "${label}" 添加成功，时长 ${durationMinutes} 分钟，已关联到待办：${linkedTaskName}。`
+                        : `专注记录 "${label}" 添加成功，时长 ${durationMinutes} 分钟。`;
 
                     const toolMsg: ChatMessage = {
                         id: Date.now().toString() + Math.random(),
                         role: 'model',
-                        text: `已为你添加专注记录：${label}，时长 ${durationMinutes} 分钟${taskInfo}`,
+                        text: linkedTaskName
+                            ? `已添加专注记录：${label} (${durationMinutes}分钟)，关联至待办：${linkedTaskName}`
+                            : `已添加专注记录：${label} (${durationMinutes}分钟)`,
                         timestamp: new Date(),
+                        actionData: { type: 'ADD_SESSION', title: label, details: linkedTaskName }
                     };
                     currentMsgs = [...currentMsgs, toolMsg];
                     setMessages(currentMsgs);
@@ -645,12 +671,14 @@ const App: React.FC = () => {
 
     // --- State Modifiers ---
 
-    const addTask = (title: string, goalId?: string) => {
+    const addTask = (title: string, goalId?: string, skipFeedback = false) => {
         setState(prev => ({
             ...prev,
             tasks: [{ id: Date.now().toString(), title, completed: false, createdAt: new Date().toISOString(), goalId }, ...prev.tasks]
         }));
-        triggerAIFeedback(`我刚刚手动添加了一个新待办任务：${title}`);
+        if (!skipFeedback) {
+            triggerAIFeedback(`我刚刚手动添加了一个新待办任务：${title}`);
+        }
     };
 
     const updateTask = (id: string, updates: Partial<Task>) => {
@@ -863,7 +891,14 @@ const App: React.FC = () => {
             }
 
             const habit = state.habits.find(h => h.id === habitId);
-            const label = habit ? habit.title : '打卡';
+            let label = habit ? habit.title : '打卡';
+
+            // Add emoji for morning/night check-ins
+            if (label.includes('早安') && !label.includes('☀️')) {
+                label = `☀️ ${label}`;
+            } else if (label.includes('晚安') && !label.includes('🌙')) {
+                label = `🌙 ${label}`;
+            }
 
             const newSession: Session = {
                 id: Date.now().toString(),
