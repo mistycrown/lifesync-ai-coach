@@ -13,6 +13,7 @@ export interface Goal {
   title: string;
   deadline: string; // ISO Date string
   completed: boolean;
+  color?: string; // Hex code or tailwind color name
 }
 
 export interface Session {
@@ -120,7 +121,7 @@ export interface DashboardProps {
   onAddGoal: (title: string, deadline: string) => void;
   onToggleGoal: (id: string) => void;
   onDeleteGoal: (id: string) => void;
-  onUpdateGoal: (id: string, title: string, deadline: string) => void;
+  onUpdateGoal: (id: string, title: string, deadline: string, color?: string) => void;
 
   onStartSession: (label: string, taskId?: string) => void;
   onStopSession: () => void;

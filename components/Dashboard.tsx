@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarPopover } from './Calendar';
+import { WeeklyTimeline } from './WeeklyTimeline';
 import { Play, Square, CheckCircle, Circle, Clock, Calendar, Trash2, Plus, Flag, ListTodo, FileText, Edit2, Save, X, Loader2, ChevronDown, ChevronRight, Check, History, ChevronLeft, Sun, Moon, ScrollText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Task, Goal, Session, DailyReport, DashboardProps } from '../types';
@@ -44,6 +45,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // Log Filtering
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
+  const [logViewMode, setLogViewMode] = useState<'list' | 'week'>('list');
 
   // Manual Add Session State
   const [showAddLog, setShowAddLog] = useState(false);
@@ -478,9 +480,24 @@ const Dashboard: React.FC<DashboardProps> = ({
           <h3 className="text-lg font-bold font-serif text-slate-800 flex items-center gap-2"><History className={`text-${theme.primary}-500`} size={20} /> 活动日志</h3>
           <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
             <button
-              onClick={() => changeDate(-1)}
+              onClick={() => setLogViewMode('list')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${logViewMode === 'list' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              列表
+            </button>
+            <button
+              onClick={() => setLogViewMode('week')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${logViewMode === 'week' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              周视图
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
+            <button
+              onClick={() => changeDate(logViewMode === 'week' ? -7 : -1)}
               className={`p-1.5 text-slate-500 hover:bg-white hover:text-${theme.primary}-600 rounded-lg transition-colors`}
-              title="前一天"
+              title={logViewMode === 'week' ? "上一周" : "前一天"}
             >
               <ChevronLeft size={16} />
             </button>
@@ -494,9 +511,9 @@ const Dashboard: React.FC<DashboardProps> = ({
               今天
             </button>
             <button
-              onClick={() => changeDate(1)}
+              onClick={() => changeDate(logViewMode === 'week' ? 7 : 1)}
               className={`p-1.5 text-slate-500 hover:bg-white hover:text-${theme.primary}-600 rounded-lg transition-colors`}
-              title="后一天"
+              title={logViewMode === 'week' ? "下一周" : "后一天"}
             >
               <ChevronRight size={16} />
             </button>
@@ -639,77 +656,94 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
 
-        <div className="overflow-x-auto rounded-xl border border-slate-100">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-slate-400 uppercase bg-slate-50/50 border-b border-slate-100">
-              <tr>
-                <th className="px-4 py-3 font-medium">类型</th>
-                <th className="px-4 py-3 font-medium">描述</th>
-                <th className="px-4 py-3 font-medium">关联待办</th>
-                <th className="px-4 py-3 font-medium">时间 / 时长</th>
-                <th className="px-4 py-3 font-medium text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filteredSessions.length === 0 && (
+        {logViewMode === 'week' ? (
+          <WeeklyTimeline
+            sessions={sessions}
+            currentDate={logDate}
+            tasks={tasks}
+            goals={goals}
+            theme={theme}
+            onSessionClick={startEditingSession}
+            onSessionUpdate={(id, start, end) => {
+              const session = sessions.find(s => s.id === id);
+              if (session) {
+                onUpdateSession(id, session.label, start, end, session.taskId);
+              }
+            }}
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-slate-100">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-slate-400 uppercase bg-slate-50/50 border-b border-slate-100">
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
-                    {logDate === new Date().toISOString().split('T')[0] ? "今天还没有记录，开始第一个番茄钟吧。" : "该日期无记录。"}
-                  </td>
+                  <th className="px-4 py-3 font-medium">类型</th>
+                  <th className="px-4 py-3 font-medium">描述</th>
+                  <th className="px-4 py-3 font-medium">关联待办</th>
+                  <th className="px-4 py-3 font-medium">时间 / 时长</th>
+                  <th className="px-4 py-3 font-medium text-right">操作</th>
                 </tr>
-              )}
-              {filteredSessions.map(session => {
-                const isMorning = session.label.includes('早安');
-                const isNight = session.label.includes('晚安');
-
-                return (
-                  <tr key={session.id} className={`hover:bg-slate-50 group transition-colors ${isMorning ? 'bg-amber-50/30' : ''} ${isNight ? 'bg-slate-50/50' : ''}`}>
-                    <td className="px-4 py-3">
-                      {isMorning ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                          <Sun size={12} className="mr-1" /> 早安
-                        </span>
-                      ) : isNight ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                          <Moon size={12} className="mr-1" /> 晚安
-                        </span>
-                      ) : (
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${theme.primary}-50 text-${theme.primary}-700`}>
-                          专注会话
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700 font-medium">{session.label}</td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">
-                      {session.taskId ? (
-                        <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 w-fit">
-                          <ListTodo size={12} />
-                          {tasks.find(t => t.id === session.taskId)?.title || '未知任务'}
-                        </span>
-                      ) : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      {!isMorning && !isNight && (
-                        <>
-                          {' - '}
-                          {session.endTime ? new Date(session.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
-                          <span className="ml-2 font-mono text-xs opacity-70">({Math.floor(session.durationSeconds / 60)}分钟)</span>
-                        </>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => startEditingSession(session)} className={`p-1.5 text-slate-400 hover:text-${theme.primary}-600 hover:bg-${theme.primary}-50 rounded`}><Edit2 size={14} /></button>
-                        <button onClick={() => onDeleteSession(session.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredSessions.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                      {logDate === new Date().toISOString().split('T')[0] ? "今天还没有记录，开始第一个番茄钟吧。" : "该日期无记录。"}
                     </td>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                )}
+                {filteredSessions.map(session => {
+                  const isMorning = session.label.includes('早安');
+                  const isNight = session.label.includes('晚安');
+
+                  return (
+                    <tr key={session.id} className={`hover:bg-slate-50 group transition-colors ${isMorning ? 'bg-amber-50/30' : ''} ${isNight ? 'bg-slate-50/50' : ''}`}>
+                      <td className="px-4 py-3">
+                        {isMorning ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                            <Sun size={12} className="mr-1" /> 早安
+                          </span>
+                        ) : isNight ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                            <Moon size={12} className="mr-1" /> 晚安
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${theme.primary}-50 text-${theme.primary}-700`}>
+                            专注会话
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 font-medium">{session.label}</td>
+                      <td className="px-4 py-3 text-slate-500 text-xs">
+                        {session.taskId ? (
+                          <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 w-fit">
+                            <ListTodo size={12} />
+                            {tasks.find(t => t.id === session.taskId)?.title || '未知任务'}
+                          </span>
+                        ) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {new Date(session.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {!isMorning && !isNight && (
+                          <>
+                            {' - '}
+                            {session.endTime ? new Date(session.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
+                            <span className="ml-2 font-mono text-xs opacity-70">({Math.floor(session.durationSeconds / 60)}分钟)</span>
+                          </>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => startEditingSession(session)} className={`p-1.5 text-slate-400 hover:text-${theme.primary}-600 hover:bg-${theme.primary}-50 rounded`}><Edit2 size={14} /></button>
+                          <button onClick={() => onDeleteSession(session.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* 5. Daily Reports & Reviews */}
@@ -984,7 +1018,7 @@ const GoalDetailsModal: React.FC<{
   sessions: Session[]; // Need sessions to calculate total time from linked tasks
   theme: any;
   onClose: () => void;
-  onUpdateGoal: (id: string, title: string, deadline: string) => void;
+  onUpdateGoal: (id: string, title: string, deadline: string, color?: string) => void;
 }> = ({ goal, tasks, sessions, theme, onClose, onUpdateGoal }) => {
   // Filter tasks linked to this goal
   const linkedTasks = tasks.filter(t => t.goalId === goal.id);
@@ -1005,10 +1039,15 @@ const GoalDetailsModal: React.FC<{
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(goal.title);
   const [editDate, setEditDate] = useState(goal.deadline);
+  const [editColor, setEditColor] = useState(goal.color || 'indigo');
+
+  const colors = [
+    'slate', 'red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose'
+  ];
 
   const handleSave = () => {
     if (editTitle.trim() && editDate) {
-      onUpdateGoal(goal.id, editTitle, editDate);
+      onUpdateGoal(goal.id, editTitle, editDate, editColor);
       setIsEditing(false);
     }
   };
@@ -1030,6 +1069,19 @@ const GoalDetailsModal: React.FC<{
                   <span className="text-sm text-slate-500">截止日期:</span>
                   <div className="flex-1">
                     <CalendarPopover value={editDate} onChange={setEditDate} theme={theme} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-500">颜色标识:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {colors.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => setEditColor(c)}
+                        className={`w-5 h-5 rounded-full bg-${c}-500 hover:scale-110 transition-transform ${editColor === c ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
+                        title={c}
+                      />
+                    ))}
                   </div>
                 </div>
                 <div className="flex gap-2 mt-2">

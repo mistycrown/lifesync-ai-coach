@@ -668,10 +668,10 @@ const App: React.FC = () => {
         }));
     };
 
-    const updateGoal = (id: string, title: string, deadline: string) => {
+    const updateGoal = (id: string, title: string, deadline: string, color?: string) => {
         setState(prev => ({
             ...prev,
-            goals: prev.goals.map(g => g.id === id ? { ...g, title, deadline } : g)
+            goals: prev.goals.map(g => g.id === id ? { ...g, title, deadline, color: color || g.color } : g)
         }));
     };
 
