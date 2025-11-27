@@ -14,6 +14,14 @@ export interface Goal {
   deadline: string; // ISO Date string
   completed: boolean;
   color?: string; // Hex code or tailwind color name
+  visionId?: string; // Link to a long-term vision
+}
+
+export interface Vision {
+  id: string;
+  title: string;
+  createdAt: string;
+  archived: boolean;
 }
 
 export interface Habit {
@@ -72,7 +80,7 @@ export interface CoachSettings {
 }
 
 export interface ActionData {
-  type: 'ADD_TASK' | 'ADD_GOAL' | 'GENERATE_REPORT';
+  type: 'ADD_TASK' | 'ADD_GOAL' | 'GENERATE_REPORT' | 'CHECK_IN' | 'ADD_SESSION';
   title: string;
   details?: string;
 }
@@ -104,6 +112,7 @@ export interface ThemeConfig {
 export interface AppState {
   tasks: Task[];
   goals: Goal[];
+  visions: Vision[]; // New: Long-term visions
   sessions: Session[];
   habits: Habit[]; // New: Habits list
   reports: DailyReport[]; // Stored daily reports
@@ -120,6 +129,7 @@ export interface AppState {
 export interface DashboardProps {
   tasks: Task[];
   goals: Goal[];
+  visions: Vision[]; // New
   sessions: Session[];
   habits: Habit[];
   reports: DailyReport[];
@@ -131,14 +141,19 @@ export interface DashboardProps {
   onAddTask: (title: string, goalId?: string) => void;
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
 
-  onAddGoal: (title: string, deadline: string, color?: string) => void;
+  onAddGoal: (title: string, deadline: string, color?: string, visionId?: string) => void;
   onToggleGoal: (id: string) => void;
   onDeleteGoal: (id: string) => void;
-  onUpdateGoal: (id: string, title: string, deadline: string, color?: string) => void;
+  onUpdateGoal: (id: string, title: string, deadline: string, color?: string, visionId?: string) => void;
+
+  onAddVision: (title: string) => void;
+  onUpdateVision: (id: string, updates: Partial<Vision>) => void;
+  onDeleteVision: (id: string) => void;
+  onToggleVisionArchived: (id: string) => void;
 
   onStartSession: (label: string, taskId?: string) => void;
   onStopSession: () => void;
-  onAddSession: (label: string, startTime: string, durationSeconds: number, taskId?: string) => void;
+  onAddSession: (label: string, startTime: string, durationSeconds: number, taskId?: string, habitId?: string) => void;
   onUpdateSession: (id: string, label: string, startTime: string, endTime: string, taskId?: string) => void;
   onRenameSession: (id: string, newLabel: string) => void;
   onDeleteSession: (id: string) => void;

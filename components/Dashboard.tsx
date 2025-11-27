@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { CalendarPopover } from './Calendar';
 import { TimePicker } from './TimePicker';
 import { WeeklyTimeline } from './WeeklyTimeline';
-import { Play, Square, CheckCircle, Circle, Clock, Calendar, Trash2, Plus, Flag, ListTodo, FileText, Edit2, Save, X, Loader2, ChevronDown, ChevronRight, Check, History, ChevronLeft, Sun, Moon, ScrollText, Palette } from 'lucide-react';
+import { Play, Square, CheckCircle, Circle, Clock, Calendar, Trash2, Plus, Flag, ListTodo, FileText, Edit2, Save, X, Loader2, ChevronDown, ChevronRight, Check, History, ChevronLeft, Sun, Moon, ScrollText, Palette, Target } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { AppState, Session, Task, Goal, DailyReport, ThemeConfig, DashboardProps } from '../types';
+import { AppState, Session, Task, Goal, DailyReport, ThemeConfig, DashboardProps, Vision } from '../types';
+import { VisionList } from './VisionList';
+import { VisionDetailsModal } from './VisionDetailsModal';
 
 const MORANDI_COLORS = [
   '#e8d3c0', // Warm Beige
@@ -18,6 +20,7 @@ const MORANDI_COLORS = [
 const Dashboard: React.FC<DashboardProps> = ({
   tasks,
   goals,
+  visions,
   sessions,
   reports,
   activeSessionId,
@@ -30,6 +33,11 @@ const Dashboard: React.FC<DashboardProps> = ({
   onToggleGoal,
   onDeleteGoal,
   onUpdateGoal,
+
+  onAddVision,
+  onUpdateVision,
+  onDeleteVision,
+  onToggleVisionArchived,
 
   onStartSession,
   onStopSession,
@@ -108,6 +116,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [expandedReportIds, setExpandedReportIds] = useState<Set<string>>(new Set());
+
+  // Vision State
+  const [goalsViewMode, setGoalsViewMode] = useState<'goals' | 'visions'>('goals');
+  const [viewingVisionId, setViewingVisionId] = useState<string | null>(null);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
 
@@ -473,10 +485,16 @@ const Dashboard: React.FC<DashboardProps> = ({
           </>
         ) : (
           <div className="flex flex-col h-full">
-            <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 content-start pr-2 custom-scrollbar">
               {habits.map(habit => {
-                const isCheckedToday = sessions.some(s => s.habitId === habit.id && s.startTime.startsWith(new Date().toISOString().split('T')[0]));
-                const totalCheckIns = sessions.filter(s => s.habitId === habit.id).length;
+                const isCheckedToday = sessions.some(s =>
+                  ((s.habitId === habit.id) ||
+                    (s.label === habit.title) ||
+                    (habit.title.includes('早安') && s.label.includes('早安')) ||
+                    (habit.title.includes('晚安') && s.label.includes('晚安')))
+                  && s.startTime.startsWith(new Date().toISOString().split('T')[0])
+                );
+                const totalCheckIns = sessions.filter(s => s.habitId === habit.id || s.label === habit.title).length;
 
                 return (
                   <div key={habit.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => setViewingHabitId(habit.id)}>
@@ -508,115 +526,150 @@ const Dashboard: React.FC<DashboardProps> = ({
         )}
       </div>
 
-      {/* 3. Goals & Deadlines */}
+      {/* 3. Goals & Visions */}
       <div className="bg-white rounded-3xl p-6 shadow-float border border-white/50 flex flex-col h-[400px]">
-        <h3 className="text-lg font-bold font-serif text-slate-800 mb-4 flex items-center gap-2">
-          <Flag className={`text-${theme.primary}-500`} size={20} /> 目标与截止日期
-        </h3>
-        <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-          {sortedGoals.length === 0 && (
-            <p className="text-slate-400 text-sm text-center py-4">暂无目标。心怀梦想，脚踏实地！</p>
-          )}
-          {sortedGoals.map(goal => (
-            <div
-              key={goal.id}
-              className={`p-4 rounded-2xl border transition-all cursor-pointer ${goal.completed ? 'bg-slate-50 border-slate-100 opacity-70' : (!goal.color?.startsWith('#') ? `border-${theme.primary}-100 bg-gradient-to-br from-${theme.primary}-50/50 to-white shadow-sm hover:shadow-md` : 'shadow-sm hover:shadow-md')}`}
-              style={!goal.completed && goal.color?.startsWith('#') ? {
-                borderColor: goal.color,
-                backgroundColor: `${goal.color}20`
-              } : {}}
-              onClick={() => setViewingGoalId(goal.id)}
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold font-serif text-slate-800 flex items-center gap-2">
+            {goalsViewMode === 'goals' ? <Flag className={`text-${theme.primary}-500`} size={20} /> : <Target className={`text-${theme.primary}-500`} size={20} />}
+            {goalsViewMode === 'goals' ? '目标与截止日期' : '长期愿景'}
+          </h3>
+          <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100">
+            <button
+              onClick={() => setGoalsViewMode('goals')}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${goalsViewMode === 'goals' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
             >
+              短期目标
+            </button>
+            <button
+              onClick={() => setGoalsViewMode('visions')}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${goalsViewMode === 'visions' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              长期愿景
+            </button>
+          </div>
+        </div>
 
-              <div className="flex justify-between items-start group">
-                <div className="flex items-start gap-3 flex-1">
-                  <button onClick={(e) => { e.stopPropagation(); onToggleGoal(goal.id); }} className={`mt-0.5 text-slate-400 hover:text-${theme.primary}-600 transition-colors`}>
-                    {goal.completed ? <CheckCircle className="text-emerald-500" size={18} /> : <Circle size={18} />}
-                  </button>
-                  <div>
-                    <h4 className={`font-medium text-sm ${goal.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{goal.title}</h4>
-                    <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
-                      <Calendar size={12} className={`text-${theme.primary}-500`} />
-                      {new Date(goal.deadline).toLocaleDateString()}
-                      <span className="ml-2 flex items-center gap-1 text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
-                        <Clock size={8} />
-                        {Math.floor(
-                          sessions.filter(s => {
-                            const task = tasks.find(t => t.id === s.taskId);
-                            return task && task.goalId === goal.id;
-                          }).reduce((acc, s) => acc + s.durationSeconds, 0) / 60
-                        )}m
-                      </span>
+        {goalsViewMode === 'goals' ? (
+          <>
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+              {sortedGoals.length === 0 && (
+                <p className="text-slate-400 text-sm text-center py-4">暂无目标。心怀梦想，脚踏实地！</p>
+              )}
+              {sortedGoals.map(goal => (
+                <div
+                  key={goal.id}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer ${goal.completed ? 'bg-slate-50 border-slate-100 opacity-70' : (!goal.color?.startsWith('#') ? `border-${theme.primary}-100 bg-gradient-to-br from-${theme.primary}-50/50 to-white shadow-sm hover:shadow-md` : 'shadow-sm hover:shadow-md')}`}
+                  style={!goal.completed && goal.color?.startsWith('#') ? {
+                    borderColor: goal.color,
+                    backgroundColor: `${goal.color}20`
+                  } : {}}
+                  onClick={() => setViewingGoalId(goal.id)}
+                >
+
+                  <div className="flex justify-between items-start group">
+                    <div className="flex items-start gap-3 flex-1">
+                      <button onClick={(e) => { e.stopPropagation(); onToggleGoal(goal.id); }} className={`mt-0.5 text-slate-400 hover:text-${theme.primary}-600 transition-colors`}>
+                        {goal.completed ? <CheckCircle className="text-emerald-500" size={18} /> : <Circle size={18} />}
+                      </button>
+                      <div>
+                        <h4 className={`font-medium text-sm ${goal.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{goal.title}</h4>
+                        <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
+                          <Calendar size={12} className={`text-${theme.primary}-500`} />
+                          {new Date(goal.deadline).toLocaleDateString()}
+                          <span className="ml-2 flex items-center gap-1 text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
+                            <Clock size={8} />
+                            {Math.floor(
+                              sessions.filter(s => {
+                                const task = tasks.find(t => t.id === s.taskId);
+                                return task && task.goalId === goal.id;
+                              }).reduce((acc, s) => acc + s.durationSeconds, 0) / 60
+                            )}m
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={(e) => { e.stopPropagation(); onDeleteGoal(goal.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14} /></button>
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={(e) => { e.stopPropagation(); onDeleteGoal(goal.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14} /></button>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <form onSubmit={handleAddGoal} className="mt-4 flex items-center gap-2">
-          <input
-            type="text"
-            value={newGoalTitle}
-            onChange={(e) => setNewGoalTitle(e.target.value)}
-            placeholder="目标名称..."
-            className={`flex-1 bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
+            <form onSubmit={handleAddGoal} className="mt-4 flex items-center gap-2">
+              <input
+                type="text"
+                value={newGoalTitle}
+                onChange={(e) => setNewGoalTitle(e.target.value)}
+                placeholder="目标名称..."
+                className={`flex-1 bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
+              />
+              <div className="w-32">
+                <CalendarPopover value={newGoalDate} onChange={setNewGoalDate} theme={theme} />
+              </div>
+
+              <div className="relative">
+                <button type="button" onClick={() => setShowColorPicker(!showColorPicker)} className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors" style={{ backgroundColor: newGoalColor }}>
+                  {!newGoalColor && <Palette size={16} className="text-slate-400" />}
+                </button>
+                {showColorPicker && (
+                  <>
+                    <div className="fixed inset-0 z-0" onClick={() => setShowColorPicker(false)} />
+                    <div className="absolute bottom-full right-0 mb-2 p-3 bg-white rounded-xl shadow-xl border border-slate-100 z-10 w-40 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="grid grid-cols-4 gap-1 mb-2">
+                        {MORANDI_COLORS.map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => { setNewGoalColor(c); setShowColorPicker(false); }}
+                            style={{ backgroundColor: c }}
+                            className="w-7 h-7 rounded-full hover:scale-110 transition-transform"
+                          />
+                        ))}
+                      </div>
+                      <div className="border-t border-slate-100 pt-2 mt-1">
+                        <label className="text-[10px] text-slate-500 mb-1 block">自定义颜色</label>
+                        <input
+                          type="text"
+                          placeholder="#RRGGBB"
+                          className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const value = e.currentTarget.value.trim();
+                              if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                                setNewGoalColor(value);
+                                setShowColorPicker(false);
+                              }
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <p className="text-[9px] text-slate-400 mt-0.5">回车确认</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button type="submit" className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-sm font-medium whitespace-nowrap">
+                添加
+              </button>
+            </form>
+          </>
+        ) : (
+          <VisionList
+            visions={visions}
+            theme={theme}
+            onAddVision={onAddVision}
+            onUpdateVision={onUpdateVision}
+            onDeleteVision={onDeleteVision}
+            onToggleVisionArchived={onToggleVisionArchived}
+            onViewVision={setViewingVisionId}
+            goals={goals}
+            tasks={tasks}
+            sessions={sessions}
           />
-          <div className="w-32">
-            <CalendarPopover value={newGoalDate} onChange={setNewGoalDate} theme={theme} />
-          </div>
-
-          <div className="relative">
-            <button type="button" onClick={() => setShowColorPicker(!showColorPicker)} className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors" style={{ backgroundColor: newGoalColor }}>
-              {!newGoalColor && <Palette size={16} className="text-slate-400" />}
-            </button>
-            {showColorPicker && (
-              <>
-                <div className="fixed inset-0 z-0" onClick={() => setShowColorPicker(false)} />
-                <div className="absolute bottom-full right-0 mb-2 p-3 bg-white rounded-xl shadow-xl border border-slate-100 z-10 w-40 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="grid grid-cols-4 gap-1 mb-2">
-                    {MORANDI_COLORS.map(c => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => { setNewGoalColor(c); setShowColorPicker(false); }}
-                        style={{ backgroundColor: c }}
-                        className="w-7 h-7 rounded-full hover:scale-110 transition-transform"
-                      />
-                    ))}
-                  </div>
-                  <div className="border-t border-slate-100 pt-2 mt-1">
-                    <label className="text-[10px] text-slate-500 mb-1 block">自定义颜色</label>
-                    <input
-                      type="text"
-                      placeholder="#RRGGBB"
-                      className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const value = e.currentTarget.value.trim();
-                          if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
-                            setNewGoalColor(value);
-                            setShowColorPicker(false);
-                          }
-                        }
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    <p className="text-[9px] text-slate-400 mt-0.5">回车确认</p>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          <button type="submit" className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-sm font-medium whitespace-nowrap">
-            添加
-          </button>
-        </form>
+        )}
       </div>
 
       {/* 4. History Log */}
@@ -991,22 +1044,24 @@ const Dashboard: React.FC<DashboardProps> = ({
                               </div>
                             </>
                           )}
-                          <button
-                            onClick={() => setEditingTaskLinkSessionId(session.id)}
-                            className="flex items-center gap-1.5 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-all border border-transparent hover:border-slate-200 group"
-                          >
-                            {session.taskId ? (
-                              <>
-                                <ListTodo size={14} className="text-slate-500" />
-                                <span className="text-slate-700 font-medium">{tasks.find(t => t.id === session.taskId)?.title || '未知任务'}</span>
-                              </>
-                            ) : (
-                              <>
-                                <Plus size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
-                                <span className="text-slate-400 group-hover:text-slate-700 transition-colors">关联待办</span>
-                              </>
-                            )}
-                          </button>
+                          {session.type !== 'checkin' && (
+                            <button
+                              onClick={() => setEditingTaskLinkSessionId(session.id)}
+                              className="flex items-center gap-1.5 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg transition-all border border-transparent hover:border-slate-200 group"
+                            >
+                              {session.taskId ? (
+                                <>
+                                  <ListTodo size={14} className="text-slate-500" />
+                                  <span className="text-slate-700 font-medium">{tasks.find(t => t.id === session.taskId)?.title || '未知任务'}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={14} className="text-slate-400 group-hover:text-slate-600 transition-colors" />
+                                  <span className="text-slate-400 group-hover:text-slate-700 transition-colors">关联待办</span>
+                                </>
+                              )}
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-slate-500">
@@ -1129,12 +1184,39 @@ const Dashboard: React.FC<DashboardProps> = ({
                         <span className="text-xs text-slate-400 font-mono bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">
                           {new Date(report.date).toLocaleDateString()}
                         </span>
+
+                        {!isExpanded && !isEditing && (
+                          <div className="flex items-center gap-3 ml-2 hidden sm:flex">
+                            {/* Metric 1: Focus Duration */}
+                            <div className="flex items-center gap-1 text-xs text-slate-500" title="专注时长">
+                              <Clock size={12} className={`text-${theme.primary}-500`} />
+                              <span className="font-mono font-bold text-slate-700">
+                                {Math.floor(sessions.filter(s => s.startTime.startsWith(new Date(report.date).toISOString().split('T')[0]) && s.type !== 'checkin' && !s.label.includes('打卡')).reduce((acc, s) => acc + s.durationSeconds, 0) / 60)}
+                              </span>
+                              <span className="scale-90">m</span>
+                            </div>
+
+                            {/* Metric 2: Focus Items */}
+                            <div className="flex items-center gap-1 text-xs text-slate-500" title="专注项数">
+                              <ListTodo size={12} className="text-slate-400" />
+                              <span className="font-mono font-bold text-slate-700">
+                                {new Set(sessions.filter(s => s.startTime.startsWith(new Date(report.date).toISOString().split('T')[0]) && s.type !== 'checkin' && !s.label.includes('打卡')).map(s => s.label)).size}
+                              </span>
+                            </div>
+
+                            {/* Metric 3: Completed Tasks */}
+                            <div className="flex items-center gap-1 text-xs text-slate-500" title="完成任务">
+                              <CheckCircle size={12} className="text-emerald-500" />
+                              <span className="font-mono font-bold text-slate-700">
+                                {(() => {
+                                  const match = report.content.match(/✅ \*\*当日完成\(创建\)任务数\*\*：(\d+)/);
+                                  return match ? match[1] : '-';
+                                })()}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      {!isExpanded && !isEditing && (
-                        <p className="text-xs text-slate-400 truncate w-full pr-4">
-                          {report.content.substring(0, 60).replace(/\n/g, ' ')}...
-                        </p>
-                      )}
                     </div>
                   </div>
 
@@ -1195,9 +1277,34 @@ const Dashboard: React.FC<DashboardProps> = ({
             goal={goals.find(g => g.id === viewingGoalId)!}
             tasks={tasks}
             sessions={sessions}
+            visions={visions}
             theme={theme}
             onClose={() => setViewingGoalId(null)}
             onUpdateGoal={onUpdateGoal}
+            onToggleGoal={onToggleGoal}
+          />
+        )
+      }
+      {
+        viewingVisionId && (
+          <VisionDetailsModal
+            vision={visions.find(v => v.id === viewingVisionId)!}
+            goals={goals}
+            tasks={tasks}
+            sessions={sessions}
+            theme={theme}
+            onClose={() => setViewingVisionId(null)}
+            onUpdateVision={onUpdateVision}
+            onDeleteVision={(id) => {
+              onDeleteVision(id);
+              setViewingVisionId(null);
+            }}
+            onUpdateGoal={(id, updates) => {
+              const goal = goals.find(g => g.id === id);
+              if (goal) {
+                onUpdateGoal(id, updates.title || goal.title, updates.deadline || goal.deadline, updates.color || goal.color, updates.visionId !== undefined ? updates.visionId : goal.visionId);
+              }
+            }}
           />
         )
       }
@@ -1313,7 +1420,16 @@ const TaskDetailsModal: React.FC<{
               <p className="text-xs text-slate-400">创建于 {new Date(task.createdAt).toLocaleDateString()}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onUpdateTask(task.id, { completed: !task.completed })}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${task.completed ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >
+              {task.completed ? <CheckCircle size={16} /> : <Circle size={16} />}
+              {task.completed ? '已完成' : '完成'}
+            </button>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+          </div>
         </div>
 
         <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
@@ -1411,10 +1527,12 @@ const GoalDetailsModal: React.FC<{
   goal: Goal;
   tasks: Task[];
   sessions: Session[]; // Need sessions to calculate total time from linked tasks
+  visions: Vision[]; // New
   theme: any;
   onClose: () => void;
-  onUpdateGoal: (id: string, title: string, deadline: string, color?: string) => void;
-}> = ({ goal, tasks, sessions, theme, onClose, onUpdateGoal }) => {
+  onUpdateGoal: (id: string, title: string, deadline: string, color?: string, visionId?: string) => void;
+  onToggleGoal: (id: string) => void;
+}> = ({ goal, tasks, sessions, visions, theme, onClose, onUpdateGoal, onToggleGoal }) => {
   // Filter tasks linked to this goal
   const linkedTasks = tasks.filter(t => t.goalId === goal.id);
 
@@ -1435,12 +1553,14 @@ const GoalDetailsModal: React.FC<{
   const [editTitle, setEditTitle] = useState(goal.title);
   const [editDate, setEditDate] = useState(goal.deadline);
   const [editColor, setEditColor] = useState(goal.color || MORANDI_COLORS[0]);
+  const [editVisionId, setEditVisionId] = useState(goal.visionId || '');
+  const [showVisionSelect, setShowVisionSelect] = useState(false);
 
   const morandiColors = MORANDI_COLORS;
 
   const handleSave = () => {
     if (editTitle.trim() && editDate) {
-      onUpdateGoal(goal.id, editTitle, editDate, editColor);
+      onUpdateGoal(goal.id, editTitle, editDate, editColor, editVisionId || undefined);
       setIsEditing(false);
     }
   };
@@ -1493,6 +1613,19 @@ const GoalDetailsModal: React.FC<{
                     }}
                   />
                 </div>
+                <div>
+                  <label className="text-sm text-slate-500 mb-1 block">关联愿景:</label>
+                  <select
+                    value={editVisionId}
+                    onChange={(e) => setEditVisionId(e.target.value)}
+                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500 bg-white"
+                  >
+                    <option value="">-- 无关联 --</option>
+                    {visions.filter(v => !v.archived).map(v => (
+                      <option key={v.id} value={v.id}>{v.title}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex gap-2 mt-2">
                   <button onClick={handleSave} className={`px-3 py-1 bg-${theme.primary}-600 text-white text-xs rounded hover:bg-${theme.primary}-700`}>保存</button>
                   <button onClick={() => setIsEditing(false)} className="px-3 py-1 bg-slate-100 text-slate-600 text-xs rounded hover:bg-slate-200">取消</button>
@@ -1501,23 +1634,74 @@ const GoalDetailsModal: React.FC<{
             ) : (
               <>
                 <div className="flex items-center gap-2 group">
-                  <h3 className="text-xl font-bold font-serif text-slate-800" style={{ color: goal.color }}>{goal.title}</h3>
+                  <h3 className="text-xl font-bold font-serif text-slate-800">{goal.title}</h3>
                   <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-opacity">
                     <Edit2 size={16} />
                   </button>
                 </div>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className={`px-2 py-0.5 rounded text-xs font-bold ${goal.completed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                     {goal.completed ? '已达成' : '进行中'}
                   </span>
                   <span className="text-xs text-slate-400 flex items-center gap-1">
                     <Calendar size={12} /> 截止: {new Date(goal.deadline).toLocaleDateString()}
                   </span>
+
+                  {/* Vision Link Button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowVisionSelect(!showVisionSelect)}
+                      className={`text-xs flex items-center gap-1 px-1.5 py-0.5 rounded border transition-colors ${goal.visionId ? 'bg-slate-50 border-slate-100 text-slate-600' : 'border-dashed border-slate-300 text-slate-400 hover:text-slate-600 hover:border-slate-400'}`}
+                    >
+                      <Target size={12} />
+                      {goal.visionId ? (visions.find(v => v.id === goal.visionId)?.title || '未知愿景') : '关联长期愿景'}
+                    </button>
+                    {showVisionSelect && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowVisionSelect(false)} />
+                        <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-lg w-48 overflow-hidden">
+                          <div className="p-2 border-b border-slate-100 bg-slate-50 text-xs text-slate-500 font-medium">选择长期愿景</div>
+                          <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                            <button
+                              className="w-full text-left px-3 py-2 hover:bg-slate-50 text-xs text-slate-500"
+                              onClick={() => {
+                                onUpdateGoal(goal.id, goal.title, goal.deadline, goal.color, undefined);
+                                setShowVisionSelect(false);
+                              }}
+                            >
+                              -- 无关联 --
+                            </button>
+                            {visions.filter(v => !v.archived).map(v => (
+                              <button
+                                key={v.id}
+                                className="w-full text-left px-3 py-2 hover:bg-slate-50 text-xs text-slate-700 truncate"
+                                onClick={() => {
+                                  onUpdateGoal(goal.id, goal.title, goal.deadline, goal.color, v.id);
+                                  setShowVisionSelect(false);
+                                }}
+                              >
+                                {v.title}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </>
             )}
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onToggleGoal(goal.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${goal.completed ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >
+              {goal.completed ? <CheckCircle size={16} /> : <Circle size={16} />}
+              {goal.completed ? '已达成' : '达成'}
+            </button>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+          </div>
         </div>
 
         <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
@@ -1536,34 +1720,24 @@ const GoalDetailsModal: React.FC<{
           {/* Heatmap */}
           <div>
             <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-              <History size={16} className="text-slate-400" /> 最近30天投入
+              <History size={16} className="text-slate-400" /> 最近365天投入
             </h4>
-            <div className="flex gap-1 flex-wrap">
-              {Array.from({ length: 30 }).map((_, i) => {
-                const d = new Date();
-                d.setDate(d.getDate() - (29 - i));
-                const dateStr = d.toISOString().split('T')[0];
-
-                // Calculate duration for this day
-                const daySeconds = relevantSessions
-                  .filter(s => s.startTime.startsWith(dateStr))
-                  .reduce((acc, s) => acc + s.durationSeconds, 0);
-
-                let colorClass = 'bg-slate-100';
-                if (daySeconds > 0) colorClass = `bg-${theme.primary}-200`;
-                if (daySeconds > 1800) colorClass = `bg-${theme.primary}-300`; // > 30m
-                if (daySeconds > 3600) colorClass = `bg-${theme.primary}-400`; // > 1h
-                if (daySeconds > 7200) colorClass = `bg-${theme.primary}-500`; // > 2h
-                if (daySeconds > 14400) colorClass = `bg-${theme.primary}-600`; // > 4h
-
-                return (
-                  <div
-                    key={i}
-                    className={`w-3 h-3 rounded-sm ${colorClass}`}
-                    title={`${dateStr}: ${Math.floor(daySeconds / 60)} mins`}
-                  />
-                );
-              })}
+            <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-2">
+              {weeks.map((week, weekIndex) => (
+                <div key={weekIndex} className="flex flex-col gap-1">
+                  {week.map((day, dayIndex) => (
+                    day.date ? (
+                      <div
+                        key={day.date}
+                        className={`w-3 h-3 rounded-sm ${getColorClass(day.seconds)}`}
+                        title={`${day.date}: ${Math.floor(day.seconds / 60)} 分钟`}
+                      />
+                    ) : (
+                      <div key={`empty-${weekIndex}-${dayIndex}`} className="w-3 h-3" />
+                    )
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
 

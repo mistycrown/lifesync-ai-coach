@@ -10,7 +10,7 @@ interface ChatInterfaceProps {
   isLoading: boolean;
   settings: CoachSettings;
   theme: ThemeConfig;
-  
+
   // History Props
   chatSessions: ChatSessionData[];
   currentChatId: string | null;
@@ -20,18 +20,18 @@ interface ChatInterfaceProps {
   onCloseChat: () => void;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
-    messages, 
-    onSendMessage, 
-    isLoading, 
-    settings, 
-    theme,
-    chatSessions,
-    currentChatId,
-    onNewChat,
-    onSelectChat,
-    onDeleteChat,
-    onCloseChat
+const ChatInterface: React.FC<ChatInterfaceProps> = ({
+  messages,
+  onSendMessage,
+  isLoading,
+  settings,
+  theme,
+  chatSessions,
+  currentChatId,
+  onNewChat,
+  onSelectChat,
+  onDeleteChat,
+  onCloseChat
 }) => {
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
@@ -69,127 +69,128 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <p className={`text-xs text-${theme.primary}-600 font-medium leading-tight`}>{settings.style.split(' ')[0]}</p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-1">
-            <button 
-                onClick={onNewChat}
-                className={`p-2 rounded-lg text-slate-400 hover:text-${theme.primary}-600 hover:bg-slate-50 transition-colors`}
-                title="新对话"
-            >
-                <PlusCircle size={20} />
-            </button>
-            <button 
-                onClick={() => setShowHistory(!showHistory)}
-                className={`p-2 rounded-lg transition-colors ${showHistory ? `text-${theme.primary}-600 bg-slate-50` : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
-                title="历史记录"
-            >
-                <History size={20} />
-            </button>
-            <button
-                onClick={onCloseChat}
-                className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
-                title="关闭聊天"
-            >
-                <X size={18} />
-            </button>
+          <button
+            onClick={onNewChat}
+            className={`p-2 rounded-lg text-slate-400 hover:text-${theme.primary}-600 hover:bg-slate-50 transition-colors`}
+            title="新对话"
+          >
+            <PlusCircle size={20} />
+          </button>
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className={`p-2 rounded-lg transition-colors ${showHistory ? `text-${theme.primary}-600 bg-slate-50` : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
+            title="历史记录"
+          >
+            <History size={20} />
+          </button>
+          <button
+            onClick={onCloseChat}
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
+            title="关闭聊天"
+          >
+            <X size={18} />
+          </button>
         </div>
       </div>
 
       {/* History Overlay Drawer */}
       <div className={`absolute top-16 left-0 w-full bottom-0 bg-white z-20 transition-transform duration-300 ease-in-out flex flex-col ${showHistory ? 'translate-x-0' : 'translate-x-full'}`}>
-          <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-              <span className="font-bold text-slate-700 font-serif">历史对话</span>
-              <button onClick={() => setShowHistory(false)} className="text-slate-400 hover:text-slate-600"><X size={18}/></button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-              {chatSessions.length === 0 && (
-                  <p className="text-center text-slate-400 text-sm py-8">暂无历史记录</p>
-              )}
-              {chatSessions.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).map(session => (
-                  <div 
-                    key={session.id} 
-                    className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer border ${currentChatId === session.id ? `bg-${theme.primary}-50 border-${theme.primary}-100` : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-100'}`}
-                    onClick={() => {
-                        onSelectChat(session.id);
-                        setShowHistory(false);
-                    }}
-                  >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                          <div className={`p-2 rounded-lg ${currentChatId === session.id ? `bg-${theme.primary}-100 text-${theme.primary}-600` : 'bg-slate-100 text-slate-500'}`}>
-                              <MessageSquare size={16}/>
-                          </div>
-                          <div className="min-w-0">
-                              <h4 className={`text-sm font-medium truncate ${currentChatId === session.id ? `text-${theme.primary}-800` : 'text-slate-700'}`}>
-                                  {session.title || "新对话"}
-                              </h4>
-                              <p className="text-xs text-slate-400">
-                                  {new Date(session.updatedAt).toLocaleDateString()}
-                              </p>
-                          </div>
-                      </div>
-                      <button 
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteChat(session.id);
-                        }}
-                        className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                      >
-                          <Trash2 size={16}/>
-                      </button>
-                  </div>
-              ))}
-          </div>
+        <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+          <span className="font-bold text-slate-700 font-serif">历史对话</span>
+          <button onClick={() => setShowHistory(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+          {chatSessions.length === 0 && (
+            <p className="text-center text-slate-400 text-sm py-8">暂无历史记录</p>
+          )}
+          {chatSessions.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).map(session => (
+            <div
+              key={session.id}
+              className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer border ${currentChatId === session.id ? `bg-${theme.primary}-50 border-${theme.primary}-100` : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-100'}`}
+              onClick={() => {
+                onSelectChat(session.id);
+                setShowHistory(false);
+              }}
+            >
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className={`p-2 rounded-lg ${currentChatId === session.id ? `bg-${theme.primary}-100 text-${theme.primary}-600` : 'bg-slate-100 text-slate-500'}`}>
+                  <MessageSquare size={16} />
+                </div>
+                <div className="min-w-0">
+                  <h4 className={`text-sm font-medium truncate ${currentChatId === session.id ? `text-${theme.primary}-800` : 'text-slate-700'}`}>
+                    {session.title || "新对话"}
+                  </h4>
+                  <p className="text-xs text-slate-400">
+                    {new Date(session.updatedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteChat(session.id);
+                }}
+                className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Messages */}
-      <div 
+      <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/50 custom-scrollbar"
       >
         {messages.length === 0 && (
           <div className="text-center text-slate-400 mt-10">
             <div className={`w-16 h-16 bg-${theme.primary}-50 rounded-full flex items-center justify-center mx-auto mb-4`}>
-                <Bot className={`text-${theme.primary}-400`} size={32}/>
+              <Bot className={`text-${theme.primary}-400`} size={32} />
             </div>
             <p className="text-sm font-medium text-slate-500">你好！我是 {settings.name}。</p>
             <p className="text-xs text-slate-400 mt-1">让我们开始规划你的一天，或者开启一段专注工作吧。</p>
           </div>
         )}
-        
+
         {messages.map((msg) => {
           // Special Rendering for Action Logs
           if (msg.actionData) {
-              return (
-                <div key={msg.id} className="flex justify-center my-4">
-                    <div className="bg-white border border-slate-100 text-slate-500 rounded-full px-4 py-1.5 text-xs flex items-center gap-2 shadow-sm">
-                        {msg.actionData.type === 'ADD_TASK' && <CheckSquare size={14} className="text-emerald-500"/>}
-                        {msg.actionData.type === 'ADD_GOAL' && <Flag size={14} className={`text-${theme.primary}-500`}/>}
-                        {msg.actionData.type === 'GENERATE_REPORT' && <FileText size={14} className="text-amber-500"/>}
-                        <span>{msg.text}</span>
-                    </div>
+            return (
+              <div key={msg.id} className="flex justify-center my-4">
+                <div className="bg-white border border-slate-100 text-slate-500 rounded-full px-4 py-1.5 text-xs flex items-center gap-2 shadow-sm">
+                  {msg.actionData.type === 'ADD_TASK' && <CheckSquare size={14} className="text-emerald-500" />}
+                  {msg.actionData.type === 'ADD_GOAL' && <Flag size={14} className={`text-${theme.primary}-500`} />}
+                  {msg.actionData.type === 'GENERATE_REPORT' && <FileText size={14} className="text-amber-500" />}
+                  {msg.actionData.type === 'CHECK_IN' && <CheckSquare size={14} className="text-blue-500" />}
+                  <span>{msg.text}</span>
                 </div>
-              )
+              </div>
+            )
           }
 
           // Standard Chat Messages
           return (
-          <div
-            key={msg.id}
-            className={`flex ${msg.role === 'user' ? 'justify-end chat-user' : 'justify-start chat-bot'}`}
-          >
             <div
-              className={`max-w-[85%] rounded-2xl p-4 text-sm shadow-sm ${
-                msg.role === 'user'
-                  ? `bg-gradient-to-br from-${theme.primary}-600 to-${theme.secondary}-600 text-white rounded-br-none shadow-md`
-                  : 'bg-white text-slate-700 border border-slate-100 rounded-bl-none shadow-sm'
-              }`}
+              key={msg.id}
+              className={`flex ${msg.role === 'user' ? 'justify-end chat-user' : 'justify-start chat-bot'}`}
             >
-              <div className="markdown-body">
-                <ReactMarkdown>{msg.text}</ReactMarkdown>
+              <div
+                className={`max-w-[85%] rounded-2xl p-4 text-sm shadow-sm ${msg.role === 'user'
+                    ? `bg-gradient-to-br from-${theme.primary}-600 to-${theme.secondary}-600 text-white rounded-br-none shadow-md`
+                    : 'bg-white text-slate-700 border border-slate-100 rounded-bl-none shadow-sm'
+                  }`}
+              >
+                <div className="markdown-body">
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                </div>
               </div>
             </div>
-          </div>
-        )})}
+          )
+        })}
 
         {isLoading && (
           <div className="flex justify-start">

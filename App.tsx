@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings, BarChart3, MessageSquare, X, Sparkles, FileText, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
 import Dashboard from './components/Dashboard';
-import { AppState, ChatMessage, Task, Goal, Session, DailyReport, CoachSettings, ThemeConfig, ModelConfig, StorageConfig, ChatSessionData, Habit } from './types';
+import { AppState, ChatMessage, Task, Goal, Session, DailyReport, CoachSettings, ThemeConfig, ModelConfig, StorageConfig, ChatSessionData, Habit, Vision } from './types';
 import { CoachService } from './services/geminiService';
 import { StorageService, SUPABASE_TABLE } from './services/storageService';
 
@@ -52,6 +52,10 @@ const createMockData = (): AppState => {
         habits: [
             { id: 'h1', title: '早安打卡', icon: 'sun', createdAt: toISO(today, 0, 0) },
             { id: 'h2', title: '晚安打卡', icon: 'moon', createdAt: toISO(today, 0, 0) },
+        ],
+        visions: [
+            { id: 'v1', title: '成为全栈开发专家', createdAt: toISO(today, 0, 0), archived: false },
+            { id: 'v2', title: '保持健康的体魄', createdAt: toISO(today, 0, 0), archived: false }
         ],
         sessions: [
             // Today
@@ -353,12 +357,38 @@ const App: React.FC = () => {
         const isMorning = text.includes("早安");
         const isNight = text.includes("晚安");
 
+        let currentMsgs = updatedMessages;
+
         if (!isAutoTrigger) {
             if (isMorning) {
-                addManualSession("☀️ 早安打卡", new Date().toISOString(), 0);
+                const habit = state.habits.find(h => h.title.includes('早安'));
+                addManualSession("☀️ 早安打卡", new Date().toISOString(), 0, undefined, habit?.id);
+
+                const feedbackMsg: ChatMessage = {
+                    id: Date.now().toString() + '_sys_m',
+                    role: 'model',
+                    text: "已完成早安打卡",
+                    timestamp: new Date(),
+                    actionData: { type: 'CHECK_IN', title: '早安打卡', details: '已完成' }
+                };
+                currentMsgs = [...currentMsgs, feedbackMsg];
+                setMessages(currentMsgs);
+                updateChatSession(chatId, currentMsgs);
             }
             if (isNight) {
-                addManualSession("🌙 晚安打卡", new Date().toISOString(), 0);
+                const habit = state.habits.find(h => h.title.includes('晚安'));
+                addManualSession("🌙 晚安打卡", new Date().toISOString(), 0, undefined, habit?.id);
+
+                const feedbackMsg: ChatMessage = {
+                    id: Date.now().toString() + '_sys_n',
+                    role: 'model',
+                    text: "已完成晚安打卡",
+                    timestamp: new Date(),
+                    actionData: { type: 'CHECK_IN', title: '晚安打卡', details: '已完成' }
+                };
+                currentMsgs = [...currentMsgs, feedbackMsg];
+                setMessages(currentMsgs);
+                updateChatSession(chatId, currentMsgs);
             }
         }
 
@@ -368,7 +398,6 @@ const App: React.FC = () => {
 
             // 2. Handle Tool Calls Loop (if LLM wants to add tasks/goals)
             let loops = 0;
-            let currentMsgs = updatedMessages; // Keep track for tool logs
 
             while (result.toolCalls && result.toolCalls.length > 0 && loops < 5) {
                 loops++;
@@ -688,10 +717,10 @@ const App: React.FC = () => {
         }));
     };
 
-    const addGoal = (title: string, deadline: string, color?: string) => {
+    const addGoal = (title: string, deadline: string, color?: string, visionId?: string) => {
         setState(prev => ({
             ...prev,
-            goals: [{ id: Date.now().toString(), title, deadline, completed: false, color }, ...prev.goals]
+            goals: [{ id: Date.now().toString(), title, deadline, completed: false, color, visionId }, ...prev.goals]
         }));
     };
 
@@ -739,10 +768,39 @@ const App: React.FC = () => {
         }));
     };
 
-    const updateGoal = (id: string, title: string, deadline: string, color?: string) => {
+    const updateGoal = (id: string, title: string, deadline: string, color?: string, visionId?: string) => {
         setState(prev => ({
             ...prev,
-            goals: prev.goals.map(g => g.id === id ? { ...g, title, deadline, color: color || g.color } : g)
+            goals: prev.goals.map(g => g.id === id ? { ...g, title, deadline, color: color || g.color, visionId } : g)
+        }));
+    };
+
+    const addVision = (title: string) => {
+        setState(prev => ({
+            ...prev,
+            visions: [{ id: Date.now().toString(), title, createdAt: new Date().toISOString(), archived: false }, ...prev.visions]
+        }));
+    };
+
+    const updateVision = (id: string, updates: Partial<Vision>) => {
+        setState(prev => ({
+            ...prev,
+            visions: prev.visions.map(v => v.id === id ? { ...v, ...updates } : v)
+        }));
+    };
+
+    const deleteVision = (id: string) => {
+        setState(prev => ({
+            ...prev,
+            visions: prev.visions.filter(v => v.id !== id),
+            goals: prev.goals.map(g => g.visionId === id ? { ...g, visionId: undefined } : g) // Unlink goals
+        }));
+    };
+
+    const toggleVisionArchived = (id: string) => {
+        setState(prev => ({
+            ...prev,
+            visions: prev.visions.map(v => v.id === id ? { ...v, archived: !v.archived } : v)
         }));
     };
 
@@ -801,7 +859,7 @@ const App: React.FC = () => {
         }
     };
 
-    const addManualSession = (label: string, startTime: string, durationSeconds: number, taskId?: string) => {
+    const addManualSession = (label: string, startTime: string, durationSeconds: number, taskId?: string, habitId?: string) => {
         const endTime = new Date(new Date(startTime).getTime() + durationSeconds * 1000).toISOString();
         const newSession: Session = {
             id: Date.now().toString(),
@@ -809,7 +867,9 @@ const App: React.FC = () => {
             startTime,
             endTime,
             durationSeconds,
-            taskId
+            taskId,
+            habitId,
+            type: durationSeconds === 0 ? 'checkin' : 'focus'
         };
         setState(prev => ({
             ...prev,
@@ -1121,6 +1181,7 @@ const App: React.FC = () => {
                     <Dashboard
                         tasks={state.tasks}
                         goals={state.goals}
+                        visions={state.visions}
                         sessions={state.sessions}
                         reports={state.reports}
                         activeSessionId={state.activeSessionId}
@@ -1131,13 +1192,18 @@ const App: React.FC = () => {
                         onToggleTask={toggleTask}
                         onDeleteTask={deleteTask}
 
-                        onAddGoal={(title, deadline) => {
-                            addGoal(title, deadline);
+                        onAddGoal={(title, deadline, color, visionId) => {
+                            addGoal(title, deadline, color, visionId);
                             triggerAIFeedback(`我刚刚手动添加了一个新目标：${title}，截止日期是 ${deadline}`);
                         }}
                         onToggleGoal={toggleGoal}
                         onDeleteGoal={deleteGoal}
                         onUpdateGoal={updateGoal}
+
+                        onAddVision={addVision}
+                        onUpdateVision={updateVision}
+                        onDeleteVision={deleteVision}
+                        onToggleVisionArchived={toggleVisionArchived}
 
                         onStartSession={startSession}
                         onStopSession={stopSession}
