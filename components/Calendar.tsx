@@ -5,9 +5,11 @@ interface CalendarProps {
     value: string; // YYYY-MM-DD
     onChange: (date: string) => void;
     theme: any;
+    variant?: 'full' | 'icon' | 'responsive';
+    placement?: 'top' | 'bottom';
 }
 
-export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, theme }) => {
+export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, theme, variant = 'responsive', placement = 'bottom' }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const containerRef = useRef<HTMLDivElement>(null);
@@ -53,19 +55,29 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
 
     const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
 
+    const getTextClass = () => {
+        switch (variant) {
+            case 'full': return 'whitespace-nowrap';
+            case 'icon': return 'hidden';
+            case 'responsive': return 'hidden xl:inline whitespace-nowrap';
+            default: return 'hidden xl:inline whitespace-nowrap';
+        }
+    };
+
     return (
         <div className="relative" ref={containerRef}>
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:border-${theme.primary}-300 hover:text-${theme.primary}-600 transition-colors shadow-sm`}
+                className={`flex items-center justify-center gap-2 px-2 py-2 xl:px-3 xl:py-1.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:border-${theme.primary}-300 hover:text-${theme.primary}-600 transition-colors shadow-sm`}
+                title={value}
             >
-                <CalendarIcon size={16} className={`text-${theme.primary}-500`} />
-                {value}
+                <CalendarIcon size={16} className={`text-${theme.primary}-500 shrink-0`} />
+                <span className={getTextClass()}>{value}</span>
             </button>
 
             {isOpen && (
-                <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-72 z-50 animate-in fade-in zoom-in-95 duration-200">
+                <div className={`absolute ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} right-0 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-72 z-50 animate-in fade-in zoom-in-95 duration-200`}>
                     <div className="flex justify-between items-center mb-4">
                         <button type="button" onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded-full text-slate-500"><ChevronLeft size={18} /></button>
                         <span className="font-bold text-slate-700">{currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月</span>

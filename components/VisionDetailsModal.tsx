@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Vision, Goal, Session, Task, ThemeConfig } from '../types';
-import { X, Clock, Target, Calendar, Edit2, Save, Trash2, CheckCircle, Circle, Flag, Archive } from 'lucide-react';
+import { X, Clock, Target, Calendar, Edit2, Archive, CheckCircle, Circle } from 'lucide-react';
 
 interface VisionDetailsModalProps {
     vision: Vision;
@@ -41,12 +41,17 @@ export const VisionDetailsModal: React.FC<VisionDetailsModalProps> = ({
     const totalHours = Math.floor(totalSeconds / 3600);
     const progress10k = Math.min(100, (totalHours / 10000) * 100); // 10,000 hours rule
 
-    // 5. Heatmap Data (Last 365 Days - GitHub Style)
+    // State
+    const [isEditing, setIsEditing] = useState(false);
+    const [editTitle, setEditTitle] = useState(vision.title);
+    const [heatmapDays, setHeatmapDays] = useState(270); // Default 9 months
+
+    // 5. Heatmap Data (Dynamic days - GitHub Style)
     const getHeatmapData = () => {
         const today = new Date();
         const data: { date: string; seconds: number }[] = [];
-        // Generate last 365 days
-        for (let i = 364; i >= 0; i--) {
+        // Generate data for selected number of days
+        for (let i = heatmapDays - 1; i >= 0; i--) {
             const d = new Date(today);
             d.setDate(d.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
@@ -78,12 +83,12 @@ export const VisionDetailsModal: React.FC<VisionDetailsModalProps> = ({
         }
     });
     if (currentWeek.length > 0) {
-        weeks.push(currentWeek); // Last partial week
+        // Pad the end to complete the week
+        while (currentWeek.length < 7) {
+            currentWeek.push({ date: '', seconds: 0 });
+        }
+        weeks.push(currentWeek);
     }
-
-    // Edit State
-    const [isEditing, setIsEditing] = useState(false);
-    const [editTitle, setEditTitle] = useState(vision.title);
 
     const handleSave = () => {
         if (editTitle.trim()) {
@@ -101,9 +106,16 @@ export const VisionDetailsModal: React.FC<VisionDetailsModalProps> = ({
         return `bg-${theme.primary}-600`; // > 4h
     };
 
+    const getDaysLabel = () => {
+        if (heatmapDays <= 90) return '3个月';
+        if (heatmapDays <= 180) return '6个月';
+        if (heatmapDays <= 270) return '9个月';
+        return '12个月';
+    };
+
     return (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="p-6 border-b border-slate-100 flex justify-between items-start shrink-0">
@@ -172,31 +184,49 @@ export const VisionDetailsModal: React.FC<VisionDetailsModalProps> = ({
 
                     {/* 2. Heatmap */}
                     <div>
-                        <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Calendar size={18} className={`text-${theme.primary}-500`} /> 专注热力图 (近一年)</h3>
-                        <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-2">
-                            {weeks.map((week, weekIndex) => (
-                                <div key={weekIndex} className="flex flex-col gap-1">
-                                    {week.map((day, dayIndex) => (
-                                        day.date ? (
-                                            <div
-                                                key={day.date}
-                                                className={`w-3 h-3 rounded-sm ${getColorClass(day.seconds)}`}
-                                                title={`${day.date}: ${Math.floor(day.seconds / 60)} 分钟`}
-                                            />
-                                        ) : (
-                                            <div key={`empty-${weekIndex}-${dayIndex}`} className="w-3 h-3" />
-                                        )
-                                    ))}
-                                </div>
-                            ))}
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-slate-700 flex items-center gap-2"><Calendar size={18} className={`text-${theme.primary}-500`} /> 专注热力图 (近{getDaysLabel()})</h3>
+                            <div className="flex gap-1">
+                                {[90, 180, 270, 365].map(days => (
+                                    <button
+                                        key={days}
+                                        onClick={() => setHeatmapDays(days)}
+                                        className={`px-2 py-1 text-xs rounded transition-colors ${heatmapDays === days ? `bg-${theme.primary}-600 text-white` : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                    >
+                                        {days <= 90 ? '3月' : days <= 180 ? '6月' : days <= 270 ? '9月' : '12月'}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-2 text-xs text-slate-400 justify-end">
-                            <span>少</span>
-                            <div className="w-3 h-3 bg-slate-100 rounded-sm"></div>
-                            <div className={`w-3 h-3 bg-${theme.primary}-200 rounded-sm`}></div>
-                            <div className={`w-3 h-3 bg-${theme.primary}-400 rounded-sm`}></div>
-                            <div className={`w-3 h-3 bg-${theme.primary}-600 rounded-sm`}></div>
-                            <span>多</span>
+                        <div className="flex items-start gap-1 justify-center">
+                            {/* Weekday Labels */}
+                            <div className="flex flex-col gap-1 text-xs text-slate-400 pr-1">
+                                <div className="h-3 flex items-center">S</div>
+                                <div className="h-3 flex items-center">M</div>
+                                <div className="h-3 flex items-center">T</div>
+                                <div className="h-3 flex items-center">W</div>
+                                <div className="h-3 flex items-center">T</div>
+                                <div className="h-3 flex items-center">F</div>
+                                <div className="h-3 flex items-center">S</div>
+                            </div>
+                            {/* Heatmap Grid */}
+                            <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-2">
+                                {weeks.map((week, weekIndex) => (
+                                    <div key={weekIndex} className="flex flex-col gap-1">
+                                        {week.map((day, dayIndex) => (
+                                            day.date ? (
+                                                <div
+                                                    key={day.date}
+                                                    className={`w-3 h-3 rounded-sm ${getColorClass(day.seconds)} cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-${theme.primary}-400 transition-all`}
+                                                    title={`${new Date(day.date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}: ${Math.floor(day.seconds / 3600)}小时${Math.floor((day.seconds % 3600) / 60)}分钟`}
+                                                />
+                                            ) : (
+                                                <div key={`empty-${weekIndex}-${dayIndex}`} className="w-3 h-3" />
+                                            )
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
 

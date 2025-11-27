@@ -136,6 +136,20 @@ export interface DashboardProps {
   activeSessionId: string | null;
   theme: ThemeConfig;
 
+  // Navigation Props (Controlled by App.tsx)
+  viewingTaskId?: string | null;
+  setViewingTaskId?: (id: string | null) => void;
+  viewingGoalId?: string | null;
+  setViewingGoalId?: (id: string | null) => void;
+  viewingVisionId?: string | null;
+  setViewingVisionId?: (id: string | null) => void;
+  viewingReportId?: string | null;
+  setViewingReportId?: (id: string | null) => void;
+  viewingSessionId?: string | null;
+  setViewingSessionId?: (id: string | null) => void;
+  viewingHabitId?: string | null;
+  setViewingHabitId?: (id: string | null) => void;
+
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onAddTask: (title: string, goalId?: string) => void;

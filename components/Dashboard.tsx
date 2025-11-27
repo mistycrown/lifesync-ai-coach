@@ -7,6 +7,9 @@ import ReactMarkdown from 'react-markdown';
 import { AppState, Session, Task, Goal, DailyReport, ThemeConfig, DashboardProps, Vision } from '../types';
 import { VisionList } from './VisionList';
 import { VisionDetailsModal } from './VisionDetailsModal';
+import { SessionDetailsModal } from './SessionDetailsModal';
+import { ReportDetailsModal } from './ReportDetailsModal';
+import { HabitDetailsModal } from './HabitDetailsModal';
 
 const MORANDI_COLORS = [
   '#e8d3c0', // Warm Beige
@@ -58,6 +61,20 @@ const Dashboard: React.FC<DashboardProps> = ({
   onUpdateHabit,
   onDeleteHabit,
   onToggleCheckIn,
+
+  // Navigation Props
+  viewingTaskId: propViewingTaskId,
+  setViewingTaskId: propSetViewingTaskId,
+  viewingGoalId: propViewingGoalId,
+  setViewingGoalId: propSetViewingGoalId,
+  viewingVisionId: propViewingVisionId,
+  setViewingVisionId: propSetViewingVisionId,
+  viewingReportId: propViewingReportId,
+  setViewingReportId: propSetViewingReportId,
+  viewingSessionId: propViewingSessionId,
+  setViewingSessionId: propSetViewingSessionId,
+  viewingHabitId: propViewingHabitId,
+  setViewingHabitId: propSetViewingHabitId,
 }) => {
   const [elapsed, setElapsed] = useState(0);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -71,7 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // Habit State
   const [viewingHabitId, setViewingHabitId] = useState<string | null>(null);
-  const [showAddHabitModal, setShowAddHabitModal] = useState(false);
+
   const [newHabitTitle, setNewHabitTitle] = useState('');
 
   // Log Filtering
@@ -98,6 +115,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [editSessionEnd, setEditSessionEnd] = useState('');
   const [editSessionTaskId, setEditSessionTaskId] = useState('');
 
+
   // Quick Task Link Edit
   const [editingTaskLinkSessionId, setEditingTaskLinkSessionId] = useState<string | null>(null);
 
@@ -113,13 +131,65 @@ const Dashboard: React.FC<DashboardProps> = ({
   // Report States
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<{ title: string, content: string } | null>(null);
-  const [editingReportId, setEditingReportId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
-  const [expandedReportIds, setExpandedReportIds] = useState<Set<string>>(new Set());
+  const [viewingReportId, setViewingReportId] = useState<string | null>(null);
 
   // Vision State
   const [goalsViewMode, setGoalsViewMode] = useState<'goals' | 'visions'>('goals');
   const [viewingVisionId, setViewingVisionId] = useState<string | null>(null);
+
+  // Sync Props to Internal State
+  useEffect(() => {
+    if (propViewingTaskId !== undefined) setViewingTaskId(propViewingTaskId);
+  }, [propViewingTaskId]);
+
+  useEffect(() => {
+    if (propViewingGoalId !== undefined) setViewingGoalId(propViewingGoalId);
+  }, [propViewingGoalId]);
+
+  useEffect(() => {
+    if (propViewingVisionId !== undefined) setViewingVisionId(propViewingVisionId);
+  }, [propViewingVisionId]);
+
+  useEffect(() => {
+    if (propViewingReportId !== undefined) setViewingReportId(propViewingReportId);
+  }, [propViewingReportId]);
+
+  useEffect(() => {
+    if (propViewingSessionId !== undefined && propViewingSessionId !== null) {
+      const sessionToEdit = sessions.find(s => s.id === propViewingSessionId);
+      if (sessionToEdit) startEditingSession(sessionToEdit);
+    }
+  }, [propViewingSessionId, sessions]);
+
+  useEffect(() => {
+    if (propViewingHabitId !== undefined) setViewingHabitId(propViewingHabitId);
+  }, [propViewingHabitId]);
+
+  // Intercept Close Actions to update Props
+  const handleCloseTask = () => {
+    setViewingTaskId(null);
+    if (propSetViewingTaskId) propSetViewingTaskId(null);
+  };
+
+  const handleCloseGoal = () => {
+    setViewingGoalId(null);
+    if (propSetViewingGoalId) propSetViewingGoalId(null);
+  };
+
+  const handleCloseVision = () => {
+    setViewingVisionId(null);
+    if (propSetViewingVisionId) propSetViewingVisionId(null);
+  };
+
+  const handleCloseReport = () => {
+    setViewingReportId(null);
+    if (propSetViewingReportId) propSetViewingReportId(null);
+  };
+
+  const handleCloseSession = () => {
+    setEditingSession(null);
+    if (propSetViewingSessionId) propSetViewingSessionId(null);
+  };
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
 
@@ -185,6 +255,16 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  const handleAddHabit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newHabitTitle.trim()) {
+      onAddHabit(newHabitTitle);
+      setNewHabitTitle('');
+    }
+  };
+
+
+
   const [customCheckInLabel, setCustomCheckInLabel] = useState('');
   const [showCustomCheckIn, setShowCustomCheckIn] = useState(false);
 
@@ -224,19 +304,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     setEditSessionEnd(session.endTime ? toLocalISO(session.endTime) : '');
   };
 
-  const handleSessionUpdate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingSession && editSessionLabel && editSessionStart && editSessionEnd) {
-      onUpdateSession(
-        editingSession.id,
-        editSessionLabel,
-        new Date(editSessionStart).toISOString(),
-        new Date(editSessionEnd).toISOString(),
-        editSessionTaskId || undefined
-      );
-      setEditingSession(null);
-    }
-  };
 
   const startEditingGoal = (goal: Goal) => {
     setEditingGoalId(goal.id);
@@ -273,31 +340,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  const startEditingReport = (report: DailyReport) => {
-    setEditingReportId(report.id);
-    setEditContent(report.content);
-    const newExpanded = new Set(expandedReportIds);
-    newExpanded.add(report.id);
-    setExpandedReportIds(newExpanded);
-  };
 
-  const saveEditingReport = () => {
-    if (editingReportId && editContent.trim()) {
-      onUpdateReport(editingReportId, editContent);
-      setEditingReportId(null);
-      setEditContent('');
-    }
-  };
 
-  const toggleReportExpand = (id: string) => {
-    const newExpanded = new Set(expandedReportIds);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedReportIds(newExpanded);
-  };
+
+
+
 
   const changeDate = (days: number) => {
     const date = new Date(logDate);
@@ -518,10 +565,18 @@ const Dashboard: React.FC<DashboardProps> = ({
                 );
               })}
             </div>
-            <button onClick={() => setShowAddHabitModal(true)} className="mt-4 w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-slate-300 hover:text-slate-500 transition-colors flex items-center justify-center gap-2">
-              <Plus size={18} />
-              <span>添加打卡习惯</span>
-            </button>
+            <form onSubmit={handleAddHabit} className="mt-4 flex gap-2">
+              <input
+                type="text"
+                value={newHabitTitle}
+                onChange={(e) => setNewHabitTitle(e.target.value)}
+                placeholder="添加新习惯..."
+                className={`flex-1 bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
+              />
+              <button type="submit" className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors">
+                <Plus size={20} />
+              </button>
+            </form>
           </div>
         )}
       </div>
@@ -600,14 +655,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                 type="text"
                 value={newGoalTitle}
                 onChange={(e) => setNewGoalTitle(e.target.value)}
-                placeholder="目标名称..."
-                className={`flex-1 bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
+                placeholder="目标..."
+                className={`flex-1 min-w-[80px] bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
               />
-              <div className="w-32">
-                <CalendarPopover value={newGoalDate} onChange={setNewGoalDate} theme={theme} />
+              <div className="shrink-0">
+                <CalendarPopover value={newGoalDate} onChange={setNewGoalDate} theme={theme} placement="top" />
               </div>
 
-              <div className="relative">
+              <div className="relative shrink-0">
                 <button type="button" onClick={() => setShowColorPicker(!showColorPicker)} className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors" style={{ backgroundColor: newGoalColor }}>
                   {!newGoalColor && <Palette size={16} className="text-slate-400" />}
                 </button>
@@ -651,8 +706,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                 )}
               </div>
 
-              <button type="submit" className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors text-sm font-medium whitespace-nowrap">
-                添加
+              <button type="submit" className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors shrink-0">
+                <Plus size={20} />
               </button>
             </form>
           </>
@@ -700,7 +755,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               <ChevronLeft size={16} />
             </button>
             <div className="relative">
-              <CalendarPopover value={logDate} onChange={setLogDate} theme={theme} />
+              <CalendarPopover value={logDate} onChange={setLogDate} theme={theme} variant="full" />
             </div>
             <button
               onClick={() => setLogDate(new Date().toISOString().split('T')[0])}
@@ -826,117 +881,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
 
-        {/* Edit Session Modal */}
-        {editingSession && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-              <h3 className="font-bold text-lg mb-4 text-slate-800">
-                {editingSession.type === 'checkin' ? '修改打卡记录' : '修改专注记录'}
-              </h3>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                if (editingSession && editSessionLabel && editSessionStart) {
-                  let end = editSessionEnd;
-                  if (editingSession.type === 'checkin') {
-                    end = editSessionStart; // Check-in is a point in time
-                  }
-                  if (end) {
-                    onUpdateSession(
-                      editingSession.id,
-                      editSessionLabel,
-                      new Date(editSessionStart).toISOString(),
-                      new Date(end).toISOString(),
-                      editSessionTaskId || undefined
-                    );
-                    setEditingSession(null);
-                  }
-                }
-              }} className="space-y-4" noValidate>
-                <div>
-                  <label className="block text-sm text-slate-600 mb-1">内容</label>
-                  <input
-                    required
-                    className={`w-full border border-slate-200 rounded-lg p-2 bg-slate-50 text-slate-900 focus:outline-none focus:border-${theme.primary}-500`}
-                    value={editSessionLabel}
-                    onChange={(e) => setEditSessionLabel(e.target.value)}
-                  />
-                </div>
 
-                {/* Start Time (or Time for Check-in) */}
-                <div>
-                  <label className="block text-sm text-slate-600 mb-1">
-                    {editingSession.type === 'checkin' ? '打卡时间' : '开始时间'}
-                  </label>
-                  <TimePicker
-                    value={editSessionStart.split('T')[1] || '00:00'}
-                    onChange={(time) => {
-                      const date = editSessionStart.split('T')[0];
-                      setEditSessionStart(`${date}T${time}`);
-                    }}
-                    theme={theme}
-                  />
-                </div>
-
-                {/* End Time (Only for non-checkin) */}
-                {editingSession.type !== 'checkin' && (
-                  <div>
-                    <label className="block text-sm text-slate-600 mb-1">结束时间</label>
-                    <TimePicker
-                      value={editSessionEnd.split('T')[1] || '00:00'}
-                      onChange={(time) => {
-                        const date = editSessionEnd.split('T')[0];
-                        setEditSessionEnd(`${date}T${time}`);
-                      }}
-                      theme={theme}
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm text-slate-600 mb-1">关联待办</label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setEditSessionTaskId(editSessionTaskId ? '' : 'SHOW_SELECT')}
-                      className="w-full text-left border border-slate-200 rounded-xl p-2.5 bg-white text-slate-900 focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all hover:border-slate-300 flex items-center justify-between"
-                    >
-                      <span>{editSessionTaskId && editSessionTaskId !== 'SHOW_SELECT' ? tasks.find(t => t.id === editSessionTaskId)?.title : '-- 无关联 --'}</span>
-                      <ChevronDown size={18} className="text-slate-400" />
-                    </button>
-                    {editSessionTaskId === 'SHOW_SELECT' && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setEditSessionTaskId('')} />
-                        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto custom-scrollbar">
-                          <button
-                            type="button"
-                            className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm text-slate-500 border-b border-slate-100"
-                            onClick={() => setEditSessionTaskId('')}
-                          >
-                            -- 无关联 --
-                          </button>
-                          {tasks.filter(t => !t.completed).map(t => (
-                            <button
-                              key={t.id}
-                              type="button"
-                              className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm text-slate-700 border-b border-slate-100 last:border-b-0 transition-colors"
-                              onClick={() => setEditSessionTaskId(t.id)}
-                            >
-                              {t.title}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 mt-4">
-                  <button type="button" onClick={() => setEditingSession(null)} className="px-3 py-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">取消</button>
-                  <button type="submit" className={`px-3 py-1.5 bg-${theme.primary}-600 text-white rounded-lg hover:bg-${theme.primary}-700`}>更新</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         {logViewMode === 'week' ? (
           <WeeklyTimeline
@@ -1092,6 +1037,15 @@ const Dashboard: React.FC<DashboardProps> = ({
         )}
       </div>
 
+      {/* Session Details Modal */}
+      <SessionDetailsModal
+        session={editingSession}
+        tasks={tasks}
+        theme={theme}
+        onClose={handleCloseSession}
+        onUpdateSession={onUpdateSession}
+      />
+
       {/* 5. Daily Reports & Reviews */}
       <div className="bg-white rounded-3xl p-6 shadow-float border border-white/50 col-span-1 lg:col-span-2">
         <div className="flex justify-between items-center mb-6">
@@ -1161,153 +1115,70 @@ const Dashboard: React.FC<DashboardProps> = ({
           )}
 
           {/* Sort reports by date descending */}
-          {reports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((report) => {
-            const isExpanded = expandedReportIds.has(report.id);
-            const isEditing = editingReportId === report.id;
-
+          {reports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(report => {
             return (
-              <div key={report.id} className="border border-slate-100 rounded-2xl overflow-hidden bg-white hover:shadow-float transition-all duration-300">
-                {/* Header - Click to toggle */}
-                <div
-                  onClick={() => !isEditing && toggleReportExpand(report.id)}
-                  className={`p-5 flex justify-between items-center cursor-pointer ${isExpanded || isEditing ? 'bg-slate-50/50 border-b border-slate-100' : 'hover:bg-slate-50/30'}`}
-                >
-                  <div className="flex items-center gap-4 overflow-hidden">
-                    <div className="text-slate-300 shrink-0">
-                      {isExpanded || isEditing ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-3 mb-0.5">
-                        <span className={`font-bold font-serif text-lg ${isExpanded ? `text-${theme.primary}-700` : 'text-slate-700'}`}>
+              <div key={report.id} className="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden">
+                <div className="p-5 flex justify-between items-center">
+                  <div className="flex items-center gap-4 overflow-hidden flex-1">
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <span className="font-bold font-serif text-lg text-slate-700">
                           {report.title || "今日复盘"}
                         </span>
                         <span className="text-xs text-slate-400 font-mono bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">
                           {new Date(report.date).toLocaleDateString()}
                         </span>
+                      </div>
 
-                        {!isExpanded && !isEditing && (
-                          <div className="flex items-center gap-3 ml-2 hidden sm:flex">
-                            {/* Metric 1: Focus Duration */}
-                            <div className="flex items-center gap-1 text-xs text-slate-500" title="专注时长">
-                              <Clock size={12} className={`text-${theme.primary}-500`} />
-                              <span className="font-mono font-bold text-slate-700">
-                                {Math.floor(sessions.filter(s => s.startTime.startsWith(new Date(report.date).toISOString().split('T')[0]) && s.type !== 'checkin' && !s.label.includes('打卡')).reduce((acc, s) => acc + s.durationSeconds, 0) / 60)}
-                              </span>
-                              <span className="scale-90">m</span>
-                            </div>
+                      {/* Metrics */}
+                      <div className="flex items-center gap-3 mt-1">
+                        {/* Metric 1: Focus Duration */}
+                        <div className="flex items-center gap-1 text-xs text-slate-500" title="专注时长">
+                          <Clock size={12} className={`text-${theme.primary}-500`} />
+                          <span className="font-mono font-bold text-slate-700">
+                            {Math.floor(sessions.filter(s => s.startTime.startsWith(new Date(report.date).toISOString().split('T')[0]) && s.type !== 'checkin' && !s.label.includes('打卡')).reduce((acc, s) => acc + s.durationSeconds, 0) / 60)}
+                          </span>
+                          <span className="scale-90">m</span>
+                        </div>
 
-                            {/* Metric 2: Focus Items */}
-                            <div className="flex items-center gap-1 text-xs text-slate-500" title="专注项数">
-                              <ListTodo size={12} className="text-slate-400" />
-                              <span className="font-mono font-bold text-slate-700">
-                                {new Set(sessions.filter(s => s.startTime.startsWith(new Date(report.date).toISOString().split('T')[0]) && s.type !== 'checkin' && !s.label.includes('打卡')).map(s => s.label)).size}
-                              </span>
-                            </div>
+                        {/* Metric 2: Focus Items */}
+                        <div className="flex items-center gap-1 text-xs text-slate-500" title="专注项数">
+                          <ListTodo size={12} className="text-slate-400" />
+                          <span className="font-mono font-bold text-slate-700">
+                            {new Set(sessions.filter(s => s.startTime.startsWith(new Date(report.date).toISOString().split('T')[0]) && s.type !== 'checkin' && !s.label.includes('打卡')).map(s => s.label)).size}
+                          </span>
+                        </div>
 
-                            {/* Metric 3: Completed Tasks */}
-                            <div className="flex items-center gap-1 text-xs text-slate-500" title="完成任务">
-                              <CheckCircle size={12} className="text-emerald-500" />
-                              <span className="font-mono font-bold text-slate-700">
-                                {(() => {
-                                  const match = report.content.match(/✅ \*\*当日完成\(创建\)任务数\*\*：(\d+)/);
-                                  return match ? match[1] : '-';
-                                })()}
-                              </span>
-                            </div>
-                          </div>
-                        )}
+                        {/* Metric 3: Completed Tasks */}
+                        <div className="flex items-center gap-1 text-xs text-slate-500" title="完成任务">
+                          <CheckCircle size={12} className="text-emerald-500" />
+                          <span className="font-mono font-bold text-slate-700">
+                            {(() => {
+                              const match = report.content.match(/✅ \*\*当日完成\(创建\)任务数\*\*：(\d+)/);
+                              return match ? match[1] : '-';
+                            })()}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    {isEditing ? (
-                      <div className="flex gap-1">
-                        <button onClick={() => setEditingReportId(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={18} /></button>
-                        <button onClick={saveEditingReport} className={`p-2 bg-${theme.primary}-600 text-white rounded-lg hover:bg-${theme.primary}-700`}><Save size={18} /></button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity">
-                        <button onClick={() => startEditingReport(report)} className={`p-2 text-slate-400 hover:text-${theme.primary}-600 hover:bg-${theme.primary}-50 rounded-lg transition-colors`}><Edit2 size={16} /></button>
-                        <button onClick={() => onDeleteReport(report.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
-                      </div>
-                    )}
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => setViewingReportId(report.id)}
+                      className={`px-4 py-2 bg-${theme.primary}-600 text-white rounded-lg hover:bg-${theme.primary}-700 transition-colors text-sm font-medium opacity-0 group-hover:opacity-100`}
+                    >
+                      查看详情
+                    </button>
                   </div>
                 </div>
-
-                {/* Content Body - Collapsible */}
-                {(isExpanded || isEditing) && (
-                  <div className="p-6 bg-white animate-in slide-in-from-top-2 duration-200">
-                    {isEditing ? (
-                      <textarea
-                        className={`w-full bg-slate-50 text-slate-900 border border-slate-200 rounded-xl p-4 text-sm focus:outline-none focus:border-${theme.primary}-500 min-h-[300px] leading-relaxed`}
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                      />
-                    ) : (
-                      <div className="text-sm text-slate-700 leading-8 markdown-body px-2">
-                        <ReactMarkdown>{report.content}</ReactMarkdown>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             )
           })}
         </div>
       </div>
 
-      {/* Modals */}
-      {
-        viewingTaskId && (
-          <TaskDetailsModal
-            task={tasks.find(t => t.id === viewingTaskId)!}
-            goals={goals}
-            sessions={sessions}
-            theme={theme}
-            onClose={() => setViewingTaskId(null)}
-            onUpdateTask={onUpdateTask}
-          />
-        )
-      }
 
-      {
-        viewingGoalId && (
-          <GoalDetailsModal
-            goal={goals.find(g => g.id === viewingGoalId)!}
-            tasks={tasks}
-            sessions={sessions}
-            visions={visions}
-            theme={theme}
-            onClose={() => setViewingGoalId(null)}
-            onUpdateGoal={onUpdateGoal}
-            onToggleGoal={onToggleGoal}
-          />
-        )
-      }
-      {
-        viewingVisionId && (
-          <VisionDetailsModal
-            vision={visions.find(v => v.id === viewingVisionId)!}
-            goals={goals}
-            tasks={tasks}
-            sessions={sessions}
-            theme={theme}
-            onClose={() => setViewingVisionId(null)}
-            onUpdateVision={onUpdateVision}
-            onDeleteVision={(id) => {
-              onDeleteVision(id);
-              setViewingVisionId(null);
-            }}
-            onUpdateGoal={(id, updates) => {
-              const goal = goals.find(g => g.id === id);
-              if (goal) {
-                onUpdateGoal(id, updates.title || goal.title, updates.deadline || goal.deadline, updates.color || goal.color, updates.visionId !== undefined ? updates.visionId : goal.visionId);
-              }
-            }}
-          />
-        )
-      }
       {
         showCustomCheckIn && (
           <CustomCheckInModal
@@ -1334,15 +1205,91 @@ const Dashboard: React.FC<DashboardProps> = ({
           />
         )
       }
-      {
-        showAddHabitModal && (
-          <AddHabitModal
-            theme={theme}
-            onClose={() => setShowAddHabitModal(false)}
-            onAddHabit={onAddHabit}
-          />
-        )
-      }
+
+
+      {/* Task Details Modal */}
+      {viewingTaskId && (
+        <TaskDetailsModal
+          task={tasks.find(t => t.id === viewingTaskId)!}
+          goals={goals}
+          sessions={sessions}
+          theme={theme}
+          onClose={handleCloseTask}
+          onUpdateTask={onUpdateTask}
+        />
+      )}
+
+      {/* Goal Details Modal */}
+      {viewingGoalId && (
+        <GoalDetailsModal
+          goal={goals.find(g => g.id === viewingGoalId)!}
+          tasks={tasks}
+          sessions={sessions}
+          visions={visions}
+          theme={theme}
+          onClose={handleCloseGoal}
+          onUpdateGoal={onUpdateGoal}
+          onToggleGoal={onToggleGoal}
+        />
+      )}
+
+      {/* Vision Details Modal */}
+      {viewingVisionId && (
+        <VisionDetailsModal
+          vision={visions.find(v => v.id === viewingVisionId)!}
+          goals={goals}
+          tasks={tasks}
+          sessions={sessions}
+          theme={theme}
+          onClose={handleCloseVision}
+          onUpdateVision={onUpdateVision}
+          onDeleteVision={onDeleteVision}
+          onUpdateGoal={(id, updates) => {
+            const goal = goals.find(g => g.id === id);
+            if (goal) {
+              onUpdateGoal(id, updates.title || goal.title, updates.deadline || goal.deadline, updates.color || goal.color, updates.visionId !== undefined ? updates.visionId : goal.visionId);
+            }
+          }}
+        />
+      )}
+
+      {/* Session Details Modal */}
+      <SessionDetailsModal
+        session={editingSession}
+        tasks={tasks}
+        theme={theme}
+        onClose={handleCloseSession}
+        onUpdateSession={onUpdateSession}
+      />
+
+      {/* Report Details Modal */}
+      <ReportDetailsModal
+        report={viewingReportId ? reports.find(r => r.id === viewingReportId) || null : null}
+        theme={theme}
+        onClose={handleCloseReport}
+        onSave={(id, content) => {
+          onUpdateReport(id, content);
+        }}
+        onDelete={(id) => {
+          onDeleteReport(id);
+        }}
+      />
+
+      {/* Habit Details Modal */}
+      {viewingHabitId && (
+        <HabitDetailsModal
+          habit={habits.find(h => h.id === viewingHabitId)}
+          sessions={sessions}
+          theme={theme}
+          onClose={() => {
+            setViewingHabitId(null);
+            if (propSetViewingHabitId) propSetViewingHabitId(null);
+          }}
+          onDeleteHabit={onDeleteHabit}
+          onUpdateHabit={onUpdateHabit}
+          onToggleCheckIn={onToggleCheckIn}
+        />
+      )}
 
     </div >
   );
@@ -1358,7 +1305,7 @@ const CustomCheckInModal: React.FC<{
   const [label, setLabel] = useState('');
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
         <h3 className="font-bold text-lg mb-4 text-slate-800">自定义打卡</h3>
         <form onSubmit={(e) => { e.preventDefault(); if (label.trim()) onSubmit(label); }} className="space-y-4">
@@ -1404,7 +1351,7 @@ const TaskDetailsModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b border-slate-100 flex justify-between items-start">
           <div>
@@ -1543,6 +1490,59 @@ const GoalDetailsModal: React.FC<{
 
   const totalDuration = relevantSessions.reduce((acc, s) => acc + s.durationSeconds, 0);
 
+  // Heatmap Data (Last 60 Days - GitHub Style)
+  const getHeatmapData = () => {
+    const today = new Date();
+    const data: { date: string; seconds: number }[] = [];
+    // Generate last 60 days
+    for (let i = 59; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const daySeconds = relevantSessions
+        .filter(s => s.startTime.startsWith(dateStr))
+        .reduce((acc, s) => acc + s.durationSeconds, 0);
+      data.push({ date: dateStr, seconds: daySeconds });
+    }
+    return data;
+  };
+  const heatmapData = getHeatmapData();
+
+  // Group by weeks for vertical display (GitHub style)
+  const weeks: { date: string; seconds: number }[][] = [];
+  let currentWeek: { date: string; seconds: number }[] = [];
+
+  // Pad the beginning if the first day is not Sunday
+  const firstDay = new Date(heatmapData[0].date);
+  const startDayOfWeek = firstDay.getDay(); // 0 = Sunday
+  for (let i = 0; i < startDayOfWeek; i++) {
+    currentWeek.push({ date: '', seconds: 0 }); // Placeholder
+  }
+
+  heatmapData.forEach(day => {
+    currentWeek.push(day);
+    if (currentWeek.length === 7) {
+      weeks.push(currentWeek);
+      currentWeek = [];
+    }
+  });
+  if (currentWeek.length > 0) {
+    // Pad the end to complete the week
+    while (currentWeek.length < 7) {
+      currentWeek.push({ date: '', seconds: 0 });
+    }
+    weeks.push(currentWeek);
+  }
+
+  const getColorClass = (seconds: number) => {
+    if (seconds === 0) return 'bg-slate-100';
+    if (seconds < 1800) return `bg-${theme.primary}-200`; // < 30m
+    if (seconds < 3600) return `bg-${theme.primary}-300`; // < 1h
+    if (seconds < 7200) return `bg-${theme.primary}-400`; // < 2h
+    if (seconds < 14400) return `bg-${theme.primary}-500`; // < 4h
+    return `bg-${theme.primary}-600`; // > 4h
+  };
+
   const formatDuration = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -1566,7 +1566,7 @@ const GoalDetailsModal: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b border-slate-100 flex justify-between items-start">
           <div className="flex-1 mr-4">
@@ -1720,23 +1720,15 @@ const GoalDetailsModal: React.FC<{
           {/* Heatmap */}
           <div>
             <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-              <History size={16} className="text-slate-400" /> 最近365天投入
+              <History size={16} className="text-slate-400" /> 最近60天投入
             </h4>
-            <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-2">
-              {weeks.map((week, weekIndex) => (
-                <div key={weekIndex} className="flex flex-col gap-1">
-                  {week.map((day, dayIndex) => (
-                    day.date ? (
-                      <div
-                        key={day.date}
-                        className={`w-3 h-3 rounded-sm ${getColorClass(day.seconds)}`}
-                        title={`${day.date}: ${Math.floor(day.seconds / 60)} 分钟`}
-                      />
-                    ) : (
-                      <div key={`empty-${weekIndex}-${dayIndex}`} className="w-3 h-3" />
-                    )
-                  ))}
-                </div>
+            <div className="flex flex-wrap gap-1">
+              {heatmapData.map((day) => (
+                <div
+                  key={day.date}
+                  className={`w-3 h-3 rounded-sm ${getColorClass(day.seconds)} cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-${theme.primary}-400 transition-all`}
+                  title={`${new Date(day.date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}: ${Math.floor(day.seconds / 3600)}小时${Math.floor((day.seconds % 3600) / 60)}分钟`}
+                />
               ))}
             </div>
           </div>
@@ -1765,222 +1757,9 @@ const GoalDetailsModal: React.FC<{
   );
 };
 
-const HabitDetailsModal: React.FC<{
-  habit: any;
-  sessions: Session[];
-  theme: any;
-  onClose: () => void;
-  onDeleteHabit: (id: string) => void;
-  onUpdateHabit: (id: string, updates: any) => void;
-  onToggleCheckIn: (habitId: string, date?: string) => void;
-}> = ({ habit, sessions, theme, onClose, onDeleteHabit, onUpdateHabit, onToggleCheckIn }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Edit State
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(habit.title);
-  const [editColor, setEditColor] = useState(habit.color || MORANDI_COLORS[0]);
 
-  const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
-  const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
 
-  const handlePrevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
-  const handleNextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
-
-  const totalCheckIns = sessions.filter(s => s.habitId === habit.id).length;
-
-  const handleSave = () => {
-    if (editTitle.trim()) {
-      onUpdateHabit(habit.id, { title: editTitle, color: editColor });
-      setIsEditing(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-          <div className="flex items-center gap-3 flex-1">
-            <div className={`p-2 bg-${theme.primary}-100 text-${theme.primary}-600 rounded-xl`} style={habit.color ? { backgroundColor: `${habit.color}33`, color: habit.color } : {}}>
-              {habit.icon === 'sun' ? <Sun size={24} /> : habit.icon === 'moon' ? <Moon size={24} /> : <CheckCircle size={24} />}
-            </div>
-            <div className="flex-1">
-              {isEditing ? (
-                <div className="space-y-2">
-                  <input
-                    className="w-full text-xl font-bold font-serif text-slate-800 border-b border-slate-300 focus:border-indigo-500 outline-none bg-transparent"
-                    value={editTitle}
-                    onChange={e => setEditTitle(e.target.value)}
-                    autoFocus
-                  />
-                  <div className="flex gap-1 flex-wrap">
-                    {MORANDI_COLORS.map(c => (
-                      <button
-                        key={c}
-                        onClick={() => setEditColor(c)}
-                        style={{ backgroundColor: c }}
-                        className={`w-5 h-5 rounded-full hover:scale-110 transition-transform ${editColor === c ? 'ring-2 ring-offset-1 ring-slate-400' : ''}`}
-                      />
-                    ))}
-                  </div>
-                  <div className="mt-2">
-                    <input
-                      type="text"
-                      placeholder="#RRGGBB 自定义颜色"
-                      className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const value = e.currentTarget.value.trim();
-                          if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
-                            setEditColor(value);
-                            e.currentTarget.value = '';
-                          }
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={handleSave} className={`px-2 py-1 bg-${theme.primary}-600 text-white text-xs rounded`}>保存</button>
-                    <button onClick={() => setIsEditing(false)} className="px-2 py-1 bg-slate-200 text-slate-600 text-xs rounded">取消</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="group flex items-center gap-2">
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-800" style={habit.color ? { color: habit.color } : {}}>{habit.title}</h3>
-                    <p className="text-sm text-slate-500">累计打卡 {totalCheckIns} 天</p>
-                  </div>
-                  <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-opacity">
-                    <Edit2 size={16} />
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <button onClick={handlePrevMonth} className="p-2 hover:bg-slate-100 rounded-full text-slate-500"><ChevronLeft size={20} /></button>
-            <span className="font-bold text-lg text-slate-700">{currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月</span>
-            <button onClick={handleNextMonth} className="p-2 hover:bg-slate-100 rounded-full text-slate-500"><ChevronRight size={20} /></button>
-          </div>
-
-          <div className="grid grid-cols-7 gap-2 mb-2">
-            {['日', '一', '二', '三', '四', '五', '六'].map(d => (
-              <div key={d} className="text-center text-sm text-slate-400 font-medium py-1">{d}</div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-2">
-            {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-              <div key={`empty-${i}`} />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              const isChecked = sessions.some(s => s.habitId === habit.id && s.startTime.startsWith(dateStr));
-              const isToday = dateStr === new Date().toISOString().split('T')[0];
-              const isFuture = new Date(dateStr) > new Date();
-
-              return (
-                <button
-                  key={day}
-                  disabled={isFuture}
-                  onClick={() => onToggleCheckIn(habit.id, dateStr)}
-                  className={`
-                              aspect-square rounded-xl flex items-center justify-center text-sm font-medium transition-all relative
-                              ${isChecked
-                      ? `text-white shadow-md`
-                      : isToday
-                        ? `border-2 border-slate-300 bg-white text-slate-600`
-                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-                    }
-                              ${isFuture ? 'opacity-30 cursor-not-allowed' : ''}
-                            `}
-                  style={isChecked ? { backgroundColor: habit.color || '#6366f1' } : {}}
-                >
-                  {day}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-6 flex justify-between items-center">
-            <button
-              onClick={() => {
-                if (confirm('确定要删除这个打卡习惯吗？历史记录也会被删除。')) {
-                  onDeleteHabit(habit.id);
-                  onClose();
-                }
-              }}
-              className="text-red-500 text-sm hover:underline flex items-center gap-1"
-            >
-              <Trash2 size={14} /> 删除习惯
-            </button>
-            <div className="text-sm text-slate-400">
-              本月: <span className={`font-bold text-${theme.primary}-600`}>
-                {sessions.filter(s => s.habitId === habit.id && s.startTime.startsWith(`${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`)).length}
-              </span> 天
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const AddHabitModal: React.FC<{
-  theme: any;
-  onClose: () => void;
-  onAddHabit: (title: string) => void;
-}> = ({ theme, onClose, onAddHabit }) => {
-  const [title, setTitle] = useState('');
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-        <h3 className="text-xl font-bold text-slate-800 mb-4">添加新习惯</h3>
-        <input
-          type="text"
-          autoFocus
-          placeholder="习惯名称 (e.g. 晨跑, 阅读)"
-          className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4 focus:outline-none focus:border-${theme.primary}-500`}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && title.trim()) {
-              onAddHabit(title);
-              onClose();
-            }
-          }}
-        />
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200 transition-colors"
-          >
-            取消
-          </button>
-          <button
-            onClick={() => {
-              if (title.trim()) {
-                onAddHabit(title);
-                onClose();
-              }
-            }}
-            className={`flex-1 py-3 bg-${theme.primary}-600 text-white rounded-xl font-medium hover:bg-${theme.primary}-700 transition-colors shadow-lg shadow-${theme.primary}-200`}
-          >
-            添加
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default Dashboard;
 

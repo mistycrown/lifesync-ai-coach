@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Settings, BarChart3, MessageSquare, X, Sparkles, FileText, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson } from 'lucide-react';
+import { Settings, BarChart3, MessageSquare, X, Sparkles, FileText, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson, Search } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
 import Dashboard from './components/Dashboard';
+import { SearchModal } from './components/SearchModal';
 import { AppState, ChatMessage, Task, Goal, Session, DailyReport, CoachSettings, ThemeConfig, ModelConfig, StorageConfig, ChatSessionData, Habit, Vision } from './types';
 import { CoachService } from './services/geminiService';
 import { StorageService, SUPABASE_TABLE } from './services/storageService';
@@ -170,7 +171,16 @@ const App: React.FC = () => {
     const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH);
     const [isResizing, setIsResizing] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [settingsTab, setSettingsTab] = useState<'coach' | 'theme' | 'data'>('coach');
+
+    // Navigation State (Lifted from Dashboard for Search)
+    const [viewingTaskId, setViewingTaskId] = useState<string | null>(null);
+    const [viewingGoalId, setViewingGoalId] = useState<string | null>(null);
+    const [viewingVisionId, setViewingVisionId] = useState<string | null>(null);
+    const [viewingReportId, setViewingReportId] = useState<string | null>(null);
+    const [viewingSessionId, setViewingSessionId] = useState<string | null>(null);
+    const [viewingHabitId, setViewingHabitId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     // Connection Test State
@@ -1159,6 +1169,13 @@ const App: React.FC = () => {
                         )}
 
                         <button
+                            onClick={() => setIsSearchOpen(true)}
+                            className={`p-2 text-slate-500 hover:text-${currentTheme.primary}-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-2`}
+                        >
+                            <Search size={20} />
+                            <span className="hidden sm:inline text-sm font-medium">搜索</span>
+                        </button>
+                        <button
                             onClick={() => setIsSettingsOpen(true)}
                             className={`p-2 text-slate-500 hover:text-${currentTheme.primary}-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-2`}
                         >
@@ -1186,6 +1203,20 @@ const App: React.FC = () => {
                         reports={state.reports}
                         activeSessionId={state.activeSessionId}
                         theme={currentTheme}
+
+                        // Navigation Props
+                        viewingTaskId={viewingTaskId}
+                        setViewingTaskId={setViewingTaskId}
+                        viewingGoalId={viewingGoalId}
+                        setViewingGoalId={setViewingGoalId}
+                        viewingVisionId={viewingVisionId}
+                        setViewingVisionId={setViewingVisionId}
+                        viewingReportId={viewingReportId}
+                        setViewingReportId={setViewingReportId}
+                        viewingSessionId={viewingSessionId}
+                        setViewingSessionId={setViewingSessionId}
+                        viewingHabitId={viewingHabitId}
+                        setViewingHabitId={setViewingHabitId}
 
                         onAddTask={addTask}
                         onUpdateTask={updateTask}
@@ -1260,6 +1291,27 @@ const App: React.FC = () => {
                     </div>
                 </>
             )}
+
+            {/* Search Modal */}
+            <SearchModal
+                isOpen={isSearchOpen}
+                onClose={() => setIsSearchOpen(false)}
+                theme={currentTheme}
+                tasks={state.tasks}
+                goals={state.goals}
+                visions={state.visions}
+                sessions={state.sessions}
+                habits={state.habits}
+                reports={state.reports}
+                onNavigate={(type, id) => {
+                    if (type === 'task') setViewingTaskId(id);
+                    if (type === 'goal') setViewingGoalId(id);
+                    if (type === 'vision') setViewingVisionId(id);
+                    if (type === 'report') setViewingReportId(id);
+                    if (type === 'session') setViewingSessionId(id);
+                    if (type === 'habit') setViewingHabitId(id);
+                }}
+            />
 
             {/* Settings Modal */}
             {isSettingsOpen && (
