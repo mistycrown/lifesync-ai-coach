@@ -172,6 +172,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             )
           }
 
+          // Debug Message Special Handling
+          if (msg.text.includes('🐛 **Debug Mode')) {
+            return (
+              <div key={msg.id} className="w-full px-1 my-4">
+                <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs shadow-sm overflow-hidden">
+                  <div className="markdown-body [&_pre]:whitespace-pre-wrap [&_pre]:break-all [&_code]:whitespace-pre-wrap [&_code]:break-all text-slate-600">
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
           // Standard Chat Messages
           return (
             <div
@@ -180,8 +193,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             >
               <div
                 className={`max-w-[85%] rounded-2xl p-4 text-sm shadow-sm ${msg.role === 'user'
-                    ? `bg-gradient-to-br from-${theme.primary}-600 to-${theme.secondary}-600 text-white rounded-br-none shadow-md`
-                    : 'bg-white text-slate-700 border border-slate-100 rounded-bl-none shadow-sm'
+                  ? `bg-gradient-to-br from-${theme.primary}-600 to-${theme.secondary}-600 text-white rounded-br-none shadow-md`
+                  : 'bg-white text-slate-700 border border-slate-100 rounded-bl-none shadow-sm'
                   }`}
               >
                 <div className="markdown-body">

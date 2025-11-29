@@ -8,7 +8,7 @@ const addTaskDeclaration: FunctionDeclaration = {
   name: 'addTask',
   parameters: {
     type: Type.OBJECT,
-    description: 'Add a new task to the user\'s to-do list.',
+    description: 'Add a new task to the user\'s to-do list. If adding multiple tasks, call this function multiple times.',
     properties: {
       title: {
         type: Type.STRING,
@@ -76,7 +76,7 @@ const getOpenAITools = () => {
       type: "function",
       function: {
         name: "addTask",
-        description: "Add a new task to the user's to-do list.",
+        description: "Add a new task to the user's to-do list. If adding multiple tasks, call this function multiple times.",
         parameters: {
           type: "object",
           properties: {
@@ -143,6 +143,16 @@ class OpenAICompatibleClient {
   setSystemInstruction(instruction: string) {
     // Reset history and set system prompt
     this.history = [{ role: 'system', content: instruction }];
+  }
+
+  setHistory(history: OpenAIMessage[]) {
+    // Append history to existing system prompt
+    const systemMsg = this.history.find(h => h.role === 'system');
+    this.history = systemMsg ? [systemMsg, ...history] : history;
+  }
+
+  getHistory() {
+    return this.history;
   }
 
   async sendMessage(content: string, isToolResponse = false, toolCallId?: string, toolName?: string): Promise<{ response: string, toolCalls?: { name: string, args: any }[] }> {
@@ -218,6 +228,76 @@ class OpenAICompatibleClient {
       throw error;
     }
   }
+  async submitToolOutputs(responses: { name: string, response: any, id?: string }[]): Promise<{ response: string, toolCalls?: { name: string, args: any, id?: string }[] }> {
+    const url = `${this.config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+
+    // 1. Update History with Tool Outputs
+    for (const r of responses) {
+      if (!r.id) throw new Error("Tool ID required for OpenAI providers");
+      this.history.push({
+        role: 'tool',
+        tool_call_id: r.id,
+        name: r.name,
+        content: JSON.stringify({ result: r.response })
+      });
+    }
+
+    // 2. Call API for next response
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.apiKey}`
+        },
+        body: JSON.stringify({
+          model: this.config.modelId,
+          messages: this.history,
+          tools: getOpenAITools(),
+          stream: false
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`API Error (${response.status}): ${err}`);
+      }
+
+      const data = await response.json();
+      const choice = data.choices?.[0];
+      const message = choice?.message;
+
+      if (!message) throw new Error("No response from API");
+
+      this.history.push(message);
+
+      const toolCalls: { name: string, args: any, id: string }[] = [];
+      if (message.tool_calls) {
+        for (const tc of message.tool_calls) {
+          if (tc.type === 'function') {
+            try {
+              toolCalls.push({
+                name: tc.function.name,
+                args: JSON.parse(tc.function.arguments),
+                id: tc.id
+              });
+            } catch (e) {
+              console.error("Failed to parse tool args", e);
+            }
+          }
+        }
+      }
+
+      return {
+        response: message.content || "",
+        toolCalls: toolCalls.map(tc => ({ name: tc.name, args: tc.args, id: tc.id }))
+      };
+
+    } catch (error) {
+      console.error("OpenAI Client Error:", error);
+      throw error;
+    }
+  }
 }
 
 // --- Main Service Class ---
@@ -229,7 +309,7 @@ export class CoachService {
 
   constructor() { }
 
-  private getSystemInstruction(state: AppState): string {
+  public getSystemInstruction(state: AppState): string {
     const { coachSettings, tasks, goals, sessions, activeSessionId } = state;
 
     // Calculate daily stats for context
@@ -303,21 +383,48 @@ ${logs}
 - 你的回复应该是情感支持、鼓励、建议等内容。
 - 不要在回复中重复说"已添加XX"，因为系统会自动显示操作消息。
 - 例如，用户要求添加任务后，你只需说"好的！加油完成~"，不要说"已为你添加待办任务：XX"。
+
+【批量操作指南】：
+- 如果用户一次性要求添加多个任务（例如"添加任务A、B和C"），请务必**多次调用** addTask 工具，每次只添加一个任务。
+- 不要试图在一个函数调用中合并多个任务。
+- 同样适用于目标（addGoal）和专注记录（addSession）。
+- 请确保所有工具调用都在同一个回复回合中生成（Parallel Function Calling）。
     `;
 
     return basePrompt;
   }
 
   // Initialize or Reset Chat based on Provider
-  startChat(state: AppState) {
+  startChat(state: AppState, history?: ChatMessage[]) {
     const config = state.coachSettings.modelConfig;
     this.currentConfig = config;
+
+    // Convert App ChatMessage to Provider History Format
+    let initialHistory: any[] = [];
+    if (history && history.length > 0) {
+      // Filter out debug messages to prevent context pollution
+      // We filter out any message that has an ID indicating it's a debug message
+      const cleanHistory = history.filter(msg => !msg.id.includes('_debug'));
+
+      if (config.provider === 'gemini') {
+        initialHistory = cleanHistory.map(msg => ({
+          role: msg.role,
+          parts: [{ text: msg.text }]
+        }));
+      } else {
+        initialHistory = cleanHistory.map(msg => ({
+          role: msg.role === 'model' ? 'assistant' : 'user',
+          content: msg.text
+        }));
+      }
+    }
 
     if (config.provider === 'gemini') {
       const apiKey = config.apiKey || process.env.API_KEY || '';
       const ai = new GoogleGenAI({ apiKey });
       this.geminiChat = ai.chats.create({
         model: config.modelId || 'gemini-2.5-flash',
+        history: initialHistory,
         config: {
           systemInstruction: this.getSystemInstruction(state),
           tools: [{ functionDeclarations: [addTaskDeclaration, addGoalDeclaration, addSessionDeclaration] }],
@@ -328,17 +435,29 @@ ${logs}
       // OpenAI Compatible Providers (DeepSeek, SiliconFlow, Custom)
       this.openaiClient = new OpenAICompatibleClient(config);
       this.openaiClient.setSystemInstruction(this.getSystemInstruction(state));
+      // Manually populate history for OpenAI client
+      // Note: OpenAICompatibleClient.setSystemInstruction resets history, so we append after
+      // We need a way to set history directly or append it.
+      // Since we don't have a setHistory method, we can iterate and push.
+      // But wait, setSystemInstruction resets it.
+      // Let's assume we can just push to history array if we expose it or add a method.
+      // For now, let's add a method `setHistory` to OpenAICompatibleClient or just rely on `startChat` logic if I modify OpenAICompatibleClient.
+      // Actually, I can just use `sendMessage` to build up history if I wanted, but that's inefficient.
+      // Better to add `setHistory` to OpenAICompatibleClient.
+      if (initialHistory.length > 0) {
+        this.openaiClient.setHistory(initialHistory);
+      }
       this.geminiChat = null;
     }
   }
 
-  async sendMessage(message: string, currentState: AppState): Promise<{
+  async sendMessage(message: string, currentState: AppState, history?: ChatMessage[]): Promise<{
     response: string,
     toolCalls?: { name: string, args: any, id?: string }[]
   }> {
     // Ensure chat is initialized if switching configs or first run
     if (!this.currentConfig || JSON.stringify(this.currentConfig) !== JSON.stringify(currentState.coachSettings.modelConfig)) {
-      this.startChat(currentState);
+      this.startChat(currentState, history);
     }
 
     try {
@@ -354,25 +473,29 @@ ${logs}
     }
   }
 
-  async sendToolResponse(
-    functionName: string,
-    functionResponse: any,
-    toolId?: string // Required for OpenAI
+  async sendToolResponses(
+    responses: { name: string, response: any, id?: string }[]
   ): Promise<{ response: string, toolCalls?: { name: string, args: any, id?: string }[] }> {
 
     if (this.currentConfig?.provider === 'gemini') {
-      const parts = [{
+      const parts = responses.map(r => ({
         functionResponse: {
-          name: functionName,
-          response: { result: functionResponse }
+          name: r.name,
+          response: { result: r.response }
         }
-      }];
+      }));
       const result = await this.geminiChat!.sendMessage({ message: parts as any });
       return this.processGeminiResponse(result);
     } else {
-      // OpenAI requires the tool_call_id
-      if (!toolId) throw new Error("Tool ID required for OpenAI providers");
-      return await this.openaiClient!.sendMessage(JSON.stringify({ result: functionResponse }), true, toolId, functionName);
+      // OpenAI: Push all tool outputs to history then call API once
+      if (!this.openaiClient) throw new Error("OpenAI client not initialized");
+
+      // We need to access the client's history or use a method that adds them without triggering generation immediately?
+      // Actually, OpenAICompatibleClient.sendMessage triggers generation.
+      // We should add a method to OpenAICompatibleClient to addToolOutputs and then generate.
+      // For now, let's assume we can modify OpenAICompatibleClient to handle this.
+
+      return await this.openaiClient.submitToolOutputs(responses);
     }
   }
 
@@ -394,6 +517,15 @@ ${logs}
       // We send a simple message. This will push to a temporary history array inside that instance.
       await client.sendMessage("Hello");
     }
+  }
+
+  async getHistory(): Promise<any[]> {
+    if (this.currentConfig?.provider === 'gemini' && this.geminiChat) {
+      return await this.geminiChat.getHistory();
+    } else if (this.openaiClient) {
+      return this.openaiClient.getHistory();
+    }
+    return [];
   }
 
   private processGeminiResponse(response: GenerateContentResponse): {

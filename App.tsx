@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Settings, BarChart3, MessageSquare, X, Sparkles, FileText, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson, Search } from 'lucide-react';
+import { Settings, BarChart3, MessageSquare, X, Sparkles, FileText, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson, Search, Bug } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
 import Dashboard from './components/Dashboard';
 import { SearchModal } from './components/SearchModal';
@@ -106,7 +106,9 @@ const createMockData = (): AppState => {
                 apiKey: '',
                 baseUrl: '',
                 modelId: 'gemini-2.5-flash'
-            }
+            },
+            debugMode: false,
+            enableContext: true
         },
         theme: 'indigo',
         storageConfig: {
@@ -218,15 +220,18 @@ const App: React.FC = () => {
 
     // Init Coach and load chat history
     useEffect(() => {
-        coachService.startChat(state);
-
-        // Load messages for the active session
+        // Find current session messages to init chat with context
+        let initialMessages: ChatMessage[] = [];
         if (state.currentChatId) {
             const session = state.chatSessions.find(s => s.id === state.currentChatId);
             if (session) {
+                initialMessages = session.messages;
                 setMessages(session.messages);
             }
         }
+        // Only pass history if context is enabled
+        const historyToLoad = state.coachSettings.enableContext ? initialMessages : [];
+        coachService.startChat(state, historyToLoad);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -314,6 +319,9 @@ const App: React.FC = () => {
         if (session) {
             setState(prev => ({ ...prev, currentChatId: id }));
             setMessages(session.messages);
+            // Only pass history if context is enabled
+            const historyToLoad = state.coachSettings.enableContext ? session.messages : [];
+            coachService.startChat(state, historyToLoad);
         }
     };
 
@@ -408,118 +416,194 @@ const App: React.FC = () => {
             }
         }
 
+        // Debug Mode: Show Prompt
+        if (state.coachSettings.debugMode) {
+            const systemPrompt = coachService.getSystemInstruction(state);
+            const debugMsg: ChatMessage = {
+                id: Date.now().toString() + '_debug',
+                role: 'model',
+                text: `🐛 **Debug Mode: System Prompt**\n\n\`\`\`text\n${systemPrompt}\n\`\`\``,
+                timestamp: new Date(),
+            };
+
+            // Log History/Context (Filtered - What AI actually sees)
+            // If context is disabled, we show an empty array or a message indicating it's disabled
+            const historyForDebug = state.coachSettings.enableContext ? messages : [];
+            const cleanMessages = historyForDebug.filter(msg => !msg.id.includes('_debug'));
+
+            const debugContextMsg: ChatMessage = {
+                id: Date.now().toString() + '_debug_context',
+                role: 'model',
+                text: `🐛 **Debug Mode: Chat Context (Sent to AI)**\n\n\`\`\`json\n${JSON.stringify(cleanMessages, null, 2)}\n\`\`\``,
+                timestamp: new Date(),
+            };
+
+            currentMsgs = [...currentMsgs, debugMsg, debugContextMsg];
+            setMessages(currentMsgs);
+            updateChatSession(chatId, currentMsgs);
+        }
+
         try {
             // 1. Send message to Gemini/LLM
-            let result = await coachService.sendMessage(text, state);
+            // Only pass history if context is enabled
+            const historyToSend = state.coachSettings.enableContext ? messages : [];
+            let result = await coachService.sendMessage(text, state, historyToSend);
+
+            // DEBUG: Log Initial AI Response
+            if (state.coachSettings.debugMode) {
+                const debugMsg: ChatMessage = {
+                    id: Date.now().toString() + '_debug_response_0',
+                    role: 'model',
+                    text: `🐛 **Debug Mode: AI Response (Initial)**\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``,
+                    timestamp: new Date(),
+                };
+                currentMsgs = [...currentMsgs, debugMsg];
+                setMessages(currentMsgs);
+                updateChatSession(chatId, currentMsgs);
+            }
 
             // 2. Handle Tool Calls Loop (if LLM wants to add tasks/goals)
             let loops = 0;
 
             while (result.toolCalls && result.toolCalls.length > 0 && loops < 5) {
                 loops++;
-                const toolCall = result.toolCalls[0];
-                console.log("Tool Called:", toolCall);
 
-                let toolResult = "Success";
+                const toolResponses: { name: string, response: any, id?: string }[] = [];
 
-                // Execute Tool
-                if (toolCall.name === 'addTask') {
-                    const { title, goalTitle } = toolCall.args;
+                // Process ALL tool calls in this turn
+                for (const toolCall of result.toolCalls) {
+                    console.log("Tool Called:", toolCall);
+                    let toolResult = "Success";
 
-                    // Find goal by title if provided
-                    let goalId: string | undefined = undefined;
-                    let linkedGoalName: string | undefined = undefined;
-                    if (goalTitle) {
-                        const matchingGoal = state.goals.find(g =>
-                            g.title.toLowerCase().includes(goalTitle.toLowerCase()) ||
-                            goalTitle.toLowerCase().includes(g.title.toLowerCase())
-                        );
-                        if (matchingGoal) {
-                            goalId = matchingGoal.id;
-                            linkedGoalName = matchingGoal.title;
+                    // Execute Tool
+                    if (toolCall.name === 'addTask') {
+                        const { title, goalTitle } = toolCall.args;
+
+                        // Find goal by title if provided
+                        let goalId: string | undefined = undefined;
+                        let linkedGoalName: string | undefined = undefined;
+                        if (goalTitle) {
+                            const matchingGoal = state.goals.find(g =>
+                                g.title.toLowerCase().includes(goalTitle.toLowerCase()) ||
+                                goalTitle.toLowerCase().includes(g.title.toLowerCase())
+                            );
+                            if (matchingGoal) {
+                                goalId = matchingGoal.id;
+                                linkedGoalName = matchingGoal.title;
+                            }
                         }
+
+                        // Add task with optional goal link (skip AI feedback since we have tool message)
+                        addTask(title, goalId, true);
+                        toolResult = goalId
+                            ? `任务 "${title}" 添加成功并关联到目标 "${linkedGoalName}"。`
+                            : `任务 "${title}" 添加成功。`;
+
+                        const toolMsg: ChatMessage = {
+                            id: Date.now().toString() + Math.random(),
+                            role: 'model',
+                            text: linkedGoalName
+                                ? `已添加待办任务：${title}，关联至目标：${linkedGoalName}`
+                                : `已添加待办任务：${title}`,
+                            timestamp: new Date(),
+                            actionData: { type: 'ADD_TASK', title, details: linkedGoalName }
+                        };
+                        currentMsgs = [...currentMsgs, toolMsg];
+
+                    } else if (toolCall.name === 'addGoal') {
+                        const { title, deadline } = toolCall.args;
+                        addGoal(title, deadline);
+                        toolResult = `目标 "${title}" (截止: ${deadline}) 添加成功。`;
+
+                        const toolMsg: ChatMessage = {
+                            id: Date.now().toString() + Math.random(),
+                            role: 'model',
+                            text: `已为你设定长期目标：${title}`,
+                            timestamp: new Date(),
+                            actionData: { type: 'ADD_GOAL', title, details: deadline }
+                        };
+                        currentMsgs = [...currentMsgs, toolMsg];
+                    } else if (toolCall.name === 'addSession') {
+                        const { label, startTime, endTime, taskTitle } = toolCall.args;
+
+                        // Calculate duration
+                        const start = new Date(startTime);
+                        const end = new Date(endTime);
+                        const durationSeconds = Math.max(0, (end.getTime() - start.getTime()) / 1000);
+
+                        // Find task by title if provided
+                        let taskId: string | undefined = undefined;
+                        let linkedTaskName: string | undefined = undefined;
+                        if (taskTitle) {
+                            const matchingTask = state.tasks.find(t =>
+                                t.title.toLowerCase().includes(taskTitle.toLowerCase()) ||
+                                taskTitle.toLowerCase().includes(t.title.toLowerCase())
+                            );
+                            if (matchingTask) {
+                                taskId = matchingTask.id;
+                                linkedTaskName = matchingTask.title;
+                            }
+                        }
+
+                        // Add the session
+                        addManualSession(label, startTime, durationSeconds, taskId);
+
+                        const durationMinutes = Math.floor(durationSeconds / 60);
+                        toolResult = taskId
+                            ? `专注记录 "${label}" 添加成功，时长 ${durationMinutes} 分钟，已关联到待办：${linkedTaskName}。`
+                            : `专注记录 "${label}" 添加成功，时长 ${durationMinutes} 分钟。`;
+
+                        const toolMsg: ChatMessage = {
+                            id: Date.now().toString() + Math.random(),
+                            role: 'model',
+                            text: linkedTaskName
+                                ? `已添加专注记录：${label} (${durationMinutes}分钟)，关联至待办：${linkedTaskName}`
+                                : `已添加专注记录：${label} (${durationMinutes}分钟)`,
+                            timestamp: new Date(),
+                            actionData: { type: 'ADD_SESSION', title: label, details: linkedTaskName }
+                        };
+                        currentMsgs = [...currentMsgs, toolMsg];
                     }
 
-                    // Add task with optional goal link (skip AI feedback since we have tool message)
-                    addTask(title, goalId, true);
-                    toolResult = goalId
-                        ? `任务 "${title}" 添加成功并关联到目标 "${linkedGoalName}"。`
-                        : `任务 "${title}" 添加成功。`;
+                    toolResponses.push({
+                        name: toolCall.name,
+                        response: toolResult,
+                        id: toolCall.id
+                    });
+                }
 
-                    const toolMsg: ChatMessage = {
-                        id: Date.now().toString() + Math.random(),
+                // Update UI with all tool messages
+                setMessages(currentMsgs);
+                updateChatSession(chatId, currentMsgs);
+
+                // DEBUG: Log Tool Outputs
+                if (state.coachSettings.debugMode) {
+                    const debugOutputMsg: ChatMessage = {
+                        id: Date.now().toString() + '_debug_out_' + loops,
                         role: 'model',
-                        text: linkedGoalName
-                            ? `已添加待办任务：${title}，关联至目标：${linkedGoalName}`
-                            : `已添加待办任务：${title}`,
+                        text: `🐛 **Debug Mode: Tool Outputs (Turn ${loops})**\n\n\`\`\`json\n${JSON.stringify(toolResponses, null, 2)}\n\`\`\``,
                         timestamp: new Date(),
-                        actionData: { type: 'ADD_TASK', title, details: linkedGoalName }
                     };
-                    currentMsgs = [...currentMsgs, toolMsg];
-                    setMessages(currentMsgs);
-                    updateChatSession(chatId, currentMsgs);
-
-                } else if (toolCall.name === 'addGoal') {
-                    const { title, deadline } = toolCall.args;
-                    addGoal(title, deadline);
-                    toolResult = `目标 "${title}" (截止: ${deadline}) 添加成功。`;
-
-                    const toolMsg: ChatMessage = {
-                        id: Date.now().toString() + Math.random(),
-                        role: 'model',
-                        text: `已为你设定长期目标：${title}`,
-                        timestamp: new Date(),
-                        actionData: { type: 'ADD_GOAL', title, details: deadline }
-                    };
-                    currentMsgs = [...currentMsgs, toolMsg];
-                    setMessages(currentMsgs);
-                    updateChatSession(chatId, currentMsgs);
-                } else if (toolCall.name === 'addSession') {
-                    const { label, startTime, endTime, taskTitle } = toolCall.args;
-
-                    // Calculate duration
-                    const start = new Date(startTime);
-                    const end = new Date(endTime);
-                    const durationSeconds = Math.max(0, (end.getTime() - start.getTime()) / 1000);
-
-                    // Find task by title if provided
-                    let taskId: string | undefined = undefined;
-                    let linkedTaskName: string | undefined = undefined;
-                    if (taskTitle) {
-                        const matchingTask = state.tasks.find(t =>
-                            t.title.toLowerCase().includes(taskTitle.toLowerCase()) ||
-                            taskTitle.toLowerCase().includes(t.title.toLowerCase())
-                        );
-                        if (matchingTask) {
-                            taskId = matchingTask.id;
-                            linkedTaskName = matchingTask.title;
-                        }
-                    }
-
-                    // Add the session
-                    addManualSession(label, startTime, durationSeconds, taskId);
-
-                    const durationMinutes = Math.floor(durationSeconds / 60);
-                    toolResult = taskId
-                        ? `专注记录 "${label}" 添加成功，时长 ${durationMinutes} 分钟，已关联到待办：${linkedTaskName}。`
-                        : `专注记录 "${label}" 添加成功，时长 ${durationMinutes} 分钟。`;
-
-                    const toolMsg: ChatMessage = {
-                        id: Date.now().toString() + Math.random(),
-                        role: 'model',
-                        text: linkedTaskName
-                            ? `已添加专注记录：${label} (${durationMinutes}分钟)，关联至待办：${linkedTaskName}`
-                            : `已添加专注记录：${label} (${durationMinutes}分钟)`,
-                        timestamp: new Date(),
-                        actionData: { type: 'ADD_SESSION', title: label, details: linkedTaskName }
-                    };
-                    currentMsgs = [...currentMsgs, toolMsg];
+                    currentMsgs = [...currentMsgs, debugOutputMsg];
                     setMessages(currentMsgs);
                     updateChatSession(chatId, currentMsgs);
                 }
 
-                // 3. Send result back to LLM
-                result = await coachService.sendToolResponse(toolCall.name, toolResult, toolCall.id);
+                // 3. Send ALL results back to LLM
+                result = await coachService.sendToolResponses(toolResponses);
+
+                // DEBUG: Log Subsequent AI Response
+                if (state.coachSettings.debugMode) {
+                    const debugNextMsg: ChatMessage = {
+                        id: Date.now().toString() + '_debug_response_' + loops,
+                        role: 'model',
+                        text: `🐛 **Debug Mode: AI Response (Turn ${loops})**\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``,
+                        timestamp: new Date(),
+                    };
+                    currentMsgs = [...currentMsgs, debugNextMsg];
+                    setMessages(currentMsgs);
+                    updateChatSession(chatId, currentMsgs);
+                }
             }
 
             // 4. Add Model Response
@@ -719,7 +803,7 @@ const App: React.FC = () => {
     const addTask = (title: string, goalId?: string, skipFeedback = false) => {
         setState(prev => ({
             ...prev,
-            tasks: [{ id: Date.now().toString(), title, completed: false, createdAt: new Date().toISOString(), goalId }, ...prev.tasks]
+            tasks: [{ id: Date.now().toString() + Math.random().toString(36).substr(2, 9), title, completed: false, createdAt: new Date().toISOString(), goalId }, ...prev.tasks]
         }));
         if (!skipFeedback) {
             triggerAIFeedback(`我刚刚手动添加了一个新待办任务：${title}`);
@@ -736,7 +820,7 @@ const App: React.FC = () => {
     const addGoal = (title: string, deadline: string, color?: string, visionId?: string) => {
         setState(prev => ({
             ...prev,
-            goals: [{ id: Date.now().toString(), title, deadline, completed: false, color, visionId }, ...prev.goals]
+            goals: [{ id: Date.now().toString() + Math.random().toString(36).substr(2, 9), title, deadline, completed: false, color, visionId }, ...prev.goals]
         }));
     };
 
@@ -794,7 +878,7 @@ const App: React.FC = () => {
     const addVision = (title: string) => {
         setState(prev => ({
             ...prev,
-            visions: [{ id: Date.now().toString(), title, createdAt: new Date().toISOString(), archived: false }, ...prev.visions]
+            visions: [{ id: Date.now().toString() + Math.random().toString(36).substr(2, 9), title, createdAt: new Date().toISOString(), archived: false }, ...prev.visions]
         }));
     };
 
@@ -878,7 +962,7 @@ const App: React.FC = () => {
     const addManualSession = (label: string, startTime: string, durationSeconds: number, taskId?: string, habitId?: string) => {
         const endTime = new Date(new Date(startTime).getTime() + durationSeconds * 1000).toISOString();
         const newSession: Session = {
-            id: Date.now().toString(),
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
             label,
             startTime,
             endTime,
@@ -922,7 +1006,7 @@ const App: React.FC = () => {
 
     const handleAddHabit = (title: string, color?: string) => {
         const newHabit: Habit = {
-            id: Date.now().toString(),
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
             title,
             color,
             createdAt: new Date().toISOString()
@@ -1038,7 +1122,7 @@ const App: React.FC = () => {
 
     const addReport = (title: string, content: string, date?: string) => {
         const newReport: DailyReport = {
-            id: Date.now().toString(),
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
             date: date || new Date().toISOString(),
             title,
             content
@@ -1125,7 +1209,8 @@ const App: React.FC = () => {
                 storageConfig: localSettings.storage
             };
             // Restart chat if persona/model changed
-            coachService.startChat(updated);
+            const historyToLoad = updated.coachSettings.enableContext ? messages : [];
+            coachService.startChat(updated, historyToLoad);
             // NOTE: Do NOT clear messages here anymore, keeping conversation continuity
             return updated;
         });
@@ -1431,6 +1516,44 @@ const App: React.FC = () => {
                                             placeholder="例如：请用全英文生成点评..."
                                             className={`w-full bg-white text-slate-900 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-${currentTheme.primary}-500 outline-none font-mono shadow-sm`}
                                         />
+                                    </div>
+
+                                    {/* Debug Mode Toggle */}
+                                    <div className="pt-4 border-t border-slate-100">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Bug size={16} className="text-amber-500" />
+                                                    <label className="font-medium text-slate-700">调试模式 (Debug Mode)</label>
+                                                </div>
+                                                <p className="text-xs text-slate-500">开启后将在对话框中显示发送给 AI 的完整 Prompt。</p>
+                                            </div>
+                                            <button
+                                                onClick={() => setLocalSettings(prev => ({ ...prev, coach: { ...prev.coach, debugMode: !prev.coach.debugMode } }))}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localSettings.coach.debugMode ? `bg-${currentTheme.primary}-600` : 'bg-slate-200'}`}
+                                            >
+                                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${localSettings.coach.debugMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Context Mode Toggle */}
+                                    <div className="pt-4 border-t border-slate-100">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <MessageSquare size={16} className={`text-${currentTheme.primary}-500`} />
+                                                    <label className="font-medium text-slate-700">上下文记忆 (Context Memory)</label>
+                                                </div>
+                                                <p className="text-xs text-slate-500">开启后 AI 将记住之前的对话内容。关闭可节省 Token 但 AI 会忘记上下文。</p>
+                                            </div>
+                                            <button
+                                                onClick={() => setLocalSettings(prev => ({ ...prev, coach: { ...prev.coach, enableContext: !prev.coach.enableContext } }))}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localSettings.coach.enableContext ? `bg-${currentTheme.primary}-600` : 'bg-slate-200'}`}
+                                            >
+                                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${localSettings.coach.enableContext ? 'translate-x-6' : 'translate-x-1'}`} />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             )}

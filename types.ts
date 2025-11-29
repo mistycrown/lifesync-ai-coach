@@ -77,6 +77,8 @@ export interface CoachSettings {
   customInstruction?: string; // The actual system prompt (populated by preset or custom)
   customReportInstruction?: string; // Custom prompt for generating daily reports
   modelConfig: ModelConfig; // New: Model Configuration
+  debugMode?: boolean; // Show full prompt in chat for debugging
+  enableContext?: boolean; // Enable/Disable chat history context
 }
 
 export interface ActionData {
