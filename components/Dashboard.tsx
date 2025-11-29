@@ -1559,6 +1559,7 @@ const GoalDetailsModal: React.FC<{
   const [editColor, setEditColor] = useState(goal.color || MORANDI_COLORS[0]);
   const [editVisionId, setEditVisionId] = useState(goal.visionId || '');
   const [showVisionSelect, setShowVisionSelect] = useState(false);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; content: string } | null>(null);
 
   const morandiColors = MORANDI_COLORS;
 
@@ -1731,10 +1732,27 @@ const GoalDetailsModal: React.FC<{
                 <div
                   key={day.date}
                   className={`w-3 h-3 rounded-sm ${getColorClass(day.seconds)} cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-${theme.primary}-400 transition-all`}
-                  title={`${new Date(day.date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}: ${Math.floor(day.seconds / 3600)}小时${Math.floor((day.seconds % 3600) / 60)}分钟`}
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setTooltip({
+                      x: rect.right + 5,
+                      y: rect.bottom + 5,
+                      content: `${new Date(day.date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}: ${Math.floor(day.seconds / 3600)}小时${Math.floor((day.seconds % 3600) / 60)}分钟`
+                    });
+                  }}
+                  onMouseLeave={() => setTooltip(null)}
                 />
               ))}
             </div>
+            {/* Custom Tooltip Portal */}
+            {tooltip && (
+              <div
+                className="fixed z-[70] bg-white border border-slate-200 rounded-lg shadow-xl px-3 py-2 text-xs text-slate-700 pointer-events-none"
+                style={{ left: tooltip.x, top: tooltip.y }}
+              >
+                {tooltip.content}
+              </div>
+            )}
           </div>
 
           {/* Linked Tasks List */}

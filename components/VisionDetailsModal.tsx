@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Vision, Goal, Session, Task, ThemeConfig } from '../types';
 import { X, Clock, Target, Calendar, Edit2, Archive, CheckCircle, Circle } from 'lucide-react';
 
@@ -45,6 +46,7 @@ export const VisionDetailsModal: React.FC<VisionDetailsModalProps> = ({
     const [isEditing, setIsEditing] = useState(false);
     const [editTitle, setEditTitle] = useState(vision.title);
     const [heatmapDays, setHeatmapDays] = useState(270); // Default 9 months
+    const [tooltip, setTooltip] = useState<{ x: number; y: number; content: string } | null>(null);
 
     // 5. Heatmap Data (Dynamic days - GitHub Style)
     const getHeatmapData = () => {
@@ -210,7 +212,7 @@ export const VisionDetailsModal: React.FC<VisionDetailsModalProps> = ({
                                 <div className="h-3 flex items-center">S</div>
                             </div>
                             {/* Heatmap Grid */}
-                            <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-2">
+                            <div className="flex gap-1 overflow-x-auto custom-scrollbar p-1">
                                 {weeks.map((week, weekIndex) => (
                                     <div key={weekIndex} className="flex flex-col gap-1">
                                         {week.map((day, dayIndex) => (
@@ -218,7 +220,14 @@ export const VisionDetailsModal: React.FC<VisionDetailsModalProps> = ({
                                                 <div
                                                     key={day.date}
                                                     className={`w-3 h-3 rounded-sm ${getColorClass(day.seconds)} cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-${theme.primary}-400 transition-all`}
-                                                    title={`${new Date(day.date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}: ${Math.floor(day.seconds / 3600)}小时${Math.floor((day.seconds % 3600) / 60)}分钟`}
+                                                    onMouseEnter={(e) => {
+                                                        setTooltip({
+                                                            x: e.clientX + 10,
+                                                            y: e.clientY + 10,
+                                                            content: `${new Date(day.date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}: ${Math.floor(day.seconds / 3600)}小时${Math.floor((day.seconds % 3600) / 60)}分钟`
+                                                        });
+                                                    }}
+                                                    onMouseLeave={() => setTooltip(null)}
                                                 />
                                             ) : (
                                                 <div key={`empty-${weekIndex}-${dayIndex}`} className="w-3 h-3" />
@@ -229,6 +238,17 @@ export const VisionDetailsModal: React.FC<VisionDetailsModalProps> = ({
                             </div>
                         </div>
                     </div>
+
+                    {/* Custom Tooltip Portal */}
+                    {tooltip && createPortal(
+                        <div
+                            className="fixed z-[70] bg-white border border-slate-200 rounded-lg shadow-xl px-3 py-2 text-xs text-slate-700 pointer-events-none"
+                            style={{ left: tooltip.x, top: tooltip.y }}
+                        >
+                            {tooltip.content}
+                        </div>,
+                        document.body
+                    )}
 
                     {/* 3. Linked Goals */}
                     <div>
