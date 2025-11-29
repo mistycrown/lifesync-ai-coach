@@ -675,8 +675,6 @@ const App: React.FC = () => {
             setConnectionTestResult({ type: 'success', message: "API 连接成功！模型响应正常。" });
         } catch (error: any) {
             setConnectionTestResult({ type: 'error', message: "连接失败: " + (error.message || "未知错误") });
-        } finally {
-            setIsTestingConnection(false);
         }
     };
 
@@ -693,25 +691,94 @@ const App: React.FC = () => {
         }
     };
 
-    const syncToCloud = async () => {
-        const config = localSettings.storage;
-        if (!config.supabaseUrl || !config.supabaseKey) {
-            setSyncMessage({ type: 'error', text: "请先配置并填写 Supabase URL 和 Key" });
+    // Track last sync state to optimize uploads
+    const lastSyncRef = useRef<{
+        chatCount: number,
+        reportCount: number,
+        currentChatId: string | null
+    }>({ chatCount: 0, reportCount: 0, currentChatId: null });
+
+    // Auto-sync Effect
+    useEffect(() => {
+        const config = state.storageConfig;
+        // Only auto-sync if Supabase is configured
+        if (config.provider !== 'supabase' || !config.supabaseUrl || !config.supabaseKey) {
             return;
         }
+
+        // Debounce sync to avoid too many requests
+        const timer = setTimeout(() => {
+            syncToCloud(true);
+        }, 3000); // 3 seconds after last change
+
+        return () => clearTimeout(timer);
+    }, [state]); // Sync on any state change
+
+    const syncToCloud = async (isAuto = false) => {
+        // Use state config for auto-sync (background), local settings for manual sync (in modal)
+        const config = isAuto ? state.storageConfig : localSettings.storage;
+
+        if (!config.supabaseUrl || !config.supabaseKey) {
+            if (!isAuto) setSyncMessage({ type: 'error', text: "请先配置并填写 Supabase URL 和 Key" });
+            return;
+        }
+
+        // Determine if we need to sync archive data (heavy)
+        // Archive changes if:
+        // 1. User switched chats (old active moves to archive)
+        // 2. User deleted a chat (count changed)
+        // 3. User added/deleted a report
+        // Note: Active chat message updates are now in CORE, so they don't trigger archive sync.
+
+        const currentChatCount = state.chatSessions.length;
+        const currentReportCount = state.reports.length;
+        const currentChatId = state.currentChatId;
+
+        const hasArchiveChanged =
+            currentChatCount !== lastSyncRef.current.chatCount ||
+            currentReportCount !== lastSyncRef.current.reportCount ||
+            currentChatId !== lastSyncRef.current.currentChatId;
+
+        // If auto-sync and only core data changed, skip archive upload
+        const onlyCore = isAuto && !hasArchiveChanged;
 
         // We'll upload the CURRENT state, but with the NEW storage config embedded to ensure consistency on restore
         const stateToUpload = { ...state, storageConfig: config };
 
-        setIsSyncing(true);
-        setSyncMessage({ type: 'info', text: "正在上传到云端..." });
+        if (!isAuto) {
+            setIsSyncing(true);
+            setSyncMessage({ type: 'info', text: onlyCore ? "正在同步核心数据..." : "正在全量同步..." });
+        } else {
+            // Optional: Show a subtle "Saving..." indicator in a different state variable if desired
+            // For now we can just let it happen silently or use a non-blocking message
+        }
+
         try {
-            await StorageService.uploadData(config, stateToUpload);
-            setSyncMessage({ type: 'success', text: "上传成功！数据已安全存储。" });
+            await StorageService.uploadData(config, stateToUpload, onlyCore);
+
+            // Update reference if successful. 
+            // We update it regardless of onlyCore, because if onlyCore=true, it means archive didn't change, 
+            // so updating the ref to current values (which are same as old values for archive parts) is safe.
+            lastSyncRef.current = {
+                chatCount: currentChatCount,
+                reportCount: currentReportCount,
+                currentChatId: currentChatId
+            };
+
+            if (!isAuto) {
+                setSyncMessage({ type: 'success', text: "上传成功！数据已安全存储。" });
+            } else {
+                console.log(`Auto-sync success (${onlyCore ? 'Core Only' : 'Full'})`);
+            }
         } catch (e: any) {
-            setSyncMessage({ type: 'error', text: "上传失败: " + e.message });
+            console.error("Sync failed:", e);
+            if (!isAuto) {
+                setSyncMessage({ type: 'error', text: "上传失败: " + e.message });
+            }
         } finally {
-            setIsSyncing(false);
+            if (!isAuto) {
+                setIsSyncing(false);
+            }
         }
     };
 
@@ -1836,7 +1903,7 @@ const App: React.FC = () => {
                                             <div className="space-y-3 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <button
-                                                        onClick={syncToCloud}
+                                                        onClick={() => syncToCloud(false)}
                                                         disabled={isSyncing}
                                                         className={`flex items-center justify-center gap-2 border border-${currentTheme.primary}-200 bg-white hover:bg-${currentTheme.primary}-50 text-${currentTheme.primary}-700 font-medium py-2.5 rounded-lg transition-colors shadow-sm`}
                                                     >
