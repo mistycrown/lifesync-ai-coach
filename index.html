@@ -1,85 +1,158 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <title>LifeSync AI Coach</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-      body {
-        font-family: 'Inter', sans-serif;
-      }
-      
-      .font-serif {
-        font-family: 'Noto Serif SC', serif;
-      }
 
-      /* Custom scrollbar for chat and body */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #fff; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #e2e8f0; 
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #cbd5e1; 
-      }
-      
-      .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e2e8f0;
-          border-radius: 3px;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <title>LifeSync AI Coach</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
 
-      /* Micro-texture floating shadow */
-      .shadow-float {
-        box-shadow: 0 20px 40px -10px rgba(0,0,0,0.05), 0 10px 20px -5px rgba(0,0,0,0.02);
-      }
+    .font-serif {
+      font-family: 'Noto Serif SC', serif;
+    }
 
-      /* Markdown Styles */
-      .markdown-body h1 { font-family: 'Noto Serif SC', serif; font-size: 1.5em; font-weight: 700; margin-bottom: 0.5em; margin-top: 0.5em; }
-      .markdown-body h2 { font-family: 'Noto Serif SC', serif; font-size: 1.25em; font-weight: 600; margin-bottom: 0.5em; margin-top: 0.5em; }
-      .markdown-body h3 { font-family: 'Noto Serif SC', serif; font-size: 1.1em; font-weight: 600; margin-bottom: 0.5em; margin-top: 0.5em; }
-      .markdown-body p { margin-bottom: 0.5em; line-height: 1.7; }
-      .markdown-body ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 0.5em; }
-      .markdown-body ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 0.5em; }
-      .markdown-body blockquote { border-left: 4px solid #cbd5e1; padding-left: 1em; color: #64748b; margin-bottom: 0.5em; font-style: italic; }
-      .markdown-body pre { background: #f1f5f9; padding: 0.5em; border-radius: 0.5em; overflow-x: auto; margin-bottom: 0.5em; }
-      .markdown-body code { background: #f1f5f9; padding: 0.1em 0.3em; border-radius: 0.2em; font-family: monospace; font-size: 0.9em; }
-      .markdown-body strong { font-weight: 600; }
-      
-      /* Specific override for chat bubbles to keep text readable on colored bg */
-      .chat-user .markdown-body code { background: rgba(255,255,255,0.2); color: white; }
-      .chat-user .markdown-body blockquote { border-left-color: rgba(255,255,255,0.5); color: rgba(255,255,255,0.9); }
+    /* Custom scrollbar for chat and body */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
 
-      /* Date Picker Styling - Force White Background & Indigo Icon */
-      :root {
-        color-scheme: light;
-      }
-      
-      input[type="date"]::-webkit-calendar-picker-indicator,
-      input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-          /* Filter to make the black icon look neutral gray/blue */
-          filter: invert(48%) sepia(13%) saturate(3207%) hue-rotate(190deg) brightness(95%) contrast(80%);
-          cursor: pointer;
-          width: 1.2em;
-          height: 1.2em;
-          padding: 0px;
-          margin-left: 8px;
-      }
-    </style>
+    ::-webkit-scrollbar-track {
+      background: #fff;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #cbd5e1;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 3px;
+    }
+
+    /* Micro-texture floating shadow */
+    .shadow-float {
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.05), 0 10px 20px -5px rgba(0, 0, 0, 0.02);
+    }
+
+    /* Markdown Styles */
+    .markdown-body h1 {
+      font-family: 'Noto Serif SC', serif;
+      font-size: 1.5em;
+      font-weight: 700;
+      margin-bottom: 0.5em;
+      margin-top: 0.5em;
+    }
+
+    .markdown-body h2 {
+      font-family: 'Noto Serif SC', serif;
+      font-size: 1.25em;
+      font-weight: 600;
+      margin-bottom: 0.5em;
+      margin-top: 0.5em;
+    }
+
+    .markdown-body h3 {
+      font-family: 'Noto Serif SC', serif;
+      font-size: 1.1em;
+      font-weight: 600;
+      margin-bottom: 0.5em;
+      margin-top: 0.5em;
+    }
+
+    .markdown-body p {
+      margin-bottom: 0.5em;
+      line-height: 1.7;
+    }
+
+    .markdown-body ul {
+      list-style-type: disc;
+      padding-left: 1.5em;
+      margin-bottom: 0.5em;
+    }
+
+    .markdown-body ol {
+      list-style-type: decimal;
+      padding-left: 1.5em;
+      margin-bottom: 0.5em;
+    }
+
+    .markdown-body blockquote {
+      border-left: 4px solid #cbd5e1;
+      padding-left: 1em;
+      color: #64748b;
+      margin-bottom: 0.5em;
+      font-style: italic;
+    }
+
+    .markdown-body pre {
+      background: #f1f5f9;
+      padding: 0.5em;
+      border-radius: 0.5em;
+      overflow-x: auto;
+      margin-bottom: 0.5em;
+    }
+
+    .markdown-body code {
+      background: #f1f5f9;
+      padding: 0.1em 0.3em;
+      border-radius: 0.2em;
+      font-family: monospace;
+      font-size: 0.9em;
+    }
+
+    .markdown-body strong {
+      font-weight: 600;
+    }
+
+    /* Specific override for chat bubbles to keep text readable on colored bg */
+    .chat-user .markdown-body code {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+
+    .chat-user .markdown-body blockquote {
+      border-left-color: rgba(255, 255, 255, 0.5);
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* Date Picker Styling - Force White Background & Indigo Icon */
+    :root {
+      color-scheme: light;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+      /* Filter to make the black icon look neutral gray/blue */
+      filter: invert(48%) sepia(13%) saturate(3207%) hue-rotate(190deg) brightness(95%) contrast(80%);
+      cursor: pointer;
+      width: 1.2em;
+      height: 1.2em;
+      padding: 0px;
+      margin-left: 8px;
+    }
+  </style>
   <script type="importmap">
 {
   "imports": {
@@ -92,10 +165,12 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-slate-50 text-slate-900 h-screen overflow-hidden">
-    <div id="root"></div>
+
+<body class="bg-slate-50 text-slate-900 h-screen overflow-hidden">
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>

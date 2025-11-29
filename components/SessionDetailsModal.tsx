@@ -8,6 +8,7 @@ interface SessionDetailsModalProps {
     theme: ThemeConfig;
     onClose: () => void;
     onUpdateSession: (id: string, label: string, startTime: string, endTime: string, taskId?: string) => void;
+    onDeleteSession: (id: string) => void;
 }
 
 export const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
@@ -15,7 +16,8 @@ export const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
     tasks,
     theme,
     onClose,
-    onUpdateSession
+    onUpdateSession,
+    onDeleteSession
 }) => {
     const [editLabel, setEditLabel] = useState('');
     const [editStart, setEditStart] = useState('');
@@ -36,6 +38,13 @@ export const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
     const handleSave = () => {
         onUpdateSession(session.id, editLabel, editStart, editEnd, editTaskId || undefined);
         onClose();
+    };
+
+    const handleDelete = () => {
+        if (confirm('确定要删除这条专注记录吗？')) {
+            onDeleteSession(session.id);
+            onClose();
+        }
     };
 
     const isCheckin = session.type === 'checkin';
@@ -91,14 +100,22 @@ export const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                             </select>
                         </div>
                     )}
-                    <div className="flex justify-end gap-2 pt-2">
-                        <button onClick={onClose} className="px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm">取消</button>
+                    <div className="flex justify-between items-center pt-2">
                         <button
-                            onClick={handleSave}
-                            className={`px-4 py-2 bg-${theme.primary}-600 text-white rounded-lg hover:bg-${theme.primary}-700 text-sm font-medium`}
+                            onClick={handleDelete}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium"
                         >
-                            保存修改
+                            删除记录
                         </button>
+                        <div className="flex gap-2">
+                            <button onClick={onClose} className="px-3 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm">取消</button>
+                            <button
+                                onClick={handleSave}
+                                className={`px-4 py-2 bg-${theme.primary}-600 text-white rounded-lg hover:bg-${theme.primary}-700 text-sm font-medium`}
+                            >
+                                保存修改
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

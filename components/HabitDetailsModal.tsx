@@ -107,7 +107,7 @@ export const HabitDetailsModal: React.FC<HabitDetailsModalProps> = ({
                                         <h3 className="text-xl font-bold text-slate-800" style={habit.color ? { color: habit.color } : {}}>{habit.title}</h3>
                                         <p className="text-sm text-slate-500">累计打卡 {totalCheckIns} 天</p>
                                     </div>
-                                    <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-opacity">
+                                    <button onClick={() => setIsEditing(true)} className="text-slate-400 hover:text-slate-600 transition-opacity">
                                         <Edit2 size={16} />
                                     </button>
                                 </div>

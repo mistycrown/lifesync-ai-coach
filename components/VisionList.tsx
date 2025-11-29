@@ -86,7 +86,7 @@ export const VisionList: React.FC<VisionListProps> = ({
                                 </div>
                             </div>
 
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
+                            <div className="flex gap-1 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
                                 <button
                                     onClick={() => onToggleVisionArchived(vision.id)}
                                     className={`p-1.5 rounded transition-colors ${vision.archived ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}

@@ -12,7 +12,6 @@ interface VisionDetailsModalProps {
     onClose: () => void;
     onUpdateVision: (id: string, updates: Partial<Vision>) => void;
     onDeleteVision: (id: string) => void;
-    onUpdateGoal: (id: string, updates: Partial<Goal>) => void;
 }
 
 export const VisionDetailsModal: React.FC<VisionDetailsModalProps> = ({
@@ -23,8 +22,7 @@ export const VisionDetailsModal: React.FC<VisionDetailsModalProps> = ({
     theme,
     onClose,
     onUpdateVision,
-    onDeleteVision,
-    onUpdateGoal
+    onDeleteVision
 }) => {
     // 1. Filter Linked Goals
     const linkedGoals = goals.filter(g => g.visionId === vision.id);
@@ -139,7 +137,7 @@ export const VisionDetailsModal: React.FC<VisionDetailsModalProps> = ({
                             <div>
                                 <div className="flex items-center gap-2 group">
                                     <h2 className="text-2xl font-bold font-serif text-slate-800">{vision.title}</h2>
-                                    <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                                    <div className="flex gap-1 transition-opacity">
                                         <button onClick={() => setIsEditing(true)} className="p-1 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-100" title="编辑">
                                             <Edit2 size={16} />
                                         </button>

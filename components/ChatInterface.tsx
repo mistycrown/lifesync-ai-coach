@@ -85,13 +85,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           >
             <History size={20} />
           </button>
-          <button
-            onClick={onCloseChat}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
-            title="关闭聊天"
-          >
-            <X size={18} />
-          </button>
         </div>
       </div>
 
@@ -132,7 +125,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   e.stopPropagation();
                   onDeleteChat(session.id);
                 }}
-                className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
               >
                 <Trash2 size={16} />
               </button>
@@ -215,8 +208,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       {/* Input */}
-      <div className="p-4 bg-white border-t border-slate-100 shrink-0">
-        <div className={`flex items-center space-x-2 bg-slate-50 rounded-2xl px-4 py-2 border border-slate-200 focus-within:border-${theme.primary}-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-${theme.primary}-100 transition-all shadow-inner`}>
+      <div className="p-4 bg-slate-50/50 shrink-0">
+        <div className={`flex items-center space-x-2 bg-white rounded-full px-4 py-2 border border-slate-200 focus-within:border-${theme.primary}-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-${theme.primary}-100 transition-all shadow-lg`}>
           <input
             type="text"
             value={input}
@@ -229,7 +222,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <button
             onClick={handleSend}
             disabled={isLoading || !input.trim()}
-            className={`p-2 rounded-xl bg-${theme.primary}-600 text-white hover:bg-${theme.primary}-700 disabled:opacity-50 disabled:hover:bg-${theme.primary}-600 transition-colors shadow-sm`}
+            className={`p-2 rounded-full bg-${theme.primary}-600 text-white hover:bg-${theme.primary}-700 disabled:opacity-50 disabled:hover:bg-${theme.primary}-600 transition-colors shadow-sm`}
           >
             <Send className="w-4 h-4" />
           </button>

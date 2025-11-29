@@ -2,22 +2,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings, BarChart3, MessageSquare, X, Sparkles, FileText, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson, Search, Bug } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
-import Dashboard from './components/Dashboard';
+import { Dashboard } from './components/Dashboard';
+import { SettingsView } from './components/SettingsView';
 import { SearchModal } from './components/SearchModal';
 import { Select } from './components/Select';
 import { AppState, ChatMessage, Task, Goal, Session, DailyReport, CoachSettings, ThemeConfig, ModelConfig, StorageConfig, ChatSessionData, Habit, Vision } from './types';
 import { CoachService } from './services/geminiService';
 import { StorageService, SUPABASE_TABLE } from './services/storageService';
+import { MobileLayout } from './components/MobileLayout';
+import { THEMES, COACH_STYLES } from './constants/appConstants';
+import { AppProvider, AppContextType } from './contexts/AppContext';
 
-// --- Theme Definitions ---
-const THEMES: Record<string, ThemeConfig> = {
-    emerald: { name: '森之呼吸', primary: 'emerald', secondary: 'teal', text: 'emerald', bg: 'bg-emerald-50/50' },
-    indigo: { name: '经典蓝紫', primary: 'indigo', secondary: 'violet', text: 'indigo', bg: 'bg-indigo-50/50' },
-    blue: { name: '深海湛蓝', primary: 'blue', secondary: 'sky', text: 'blue', bg: 'bg-blue-50/50' },
-    rose: { name: '浪漫玫瑰', primary: 'rose', secondary: 'red', text: 'rose', bg: 'bg-rose-50/50' },
-    amber: { name: '温暖夕阳', primary: 'amber', secondary: 'yellow', text: 'amber', bg: 'bg-amber-50/50' },
-    slate: { name: '极简黑白', primary: 'slate', secondary: 'gray', text: 'slate', bg: 'bg-gray-50/50' },
-};
+// --- Constants imported from constants/appConstants ---
 
 const DEFAULT_CHAT_WIDTH = 400;
 const MIN_CHAT_WIDTH = 320;
@@ -128,18 +124,7 @@ const createMockData = (): AppState => {
 
 const initialState: AppState = createMockData();
 
-const COACH_STYLES = [
-    { label: "❤️温柔鼓励", value: "你是一位知心好友或温柔的姐姐。语气总是充满支持、理解和同理心。你永远温暖、陪伴、治愈。善用emoji关心和鼓励用户。" },
-    { label: "🔥严厉鞭策型", value: "你语气强硬、不留情面。拒绝任何借口，只关注结果。使用命令式短句。当用户拖延时，进行严厉的训斥和督促。关键词：纪律、行动、无借口、立刻执行。" },
-    { label: "🧠咨询顾问", value: "你是一位客观的数据分析师。语气冷静、中立、无情绪波动。注重事实、效率和逻辑拆解。用数据说话，帮助用户分析任务的可行性和时间成本。关键词：逻辑、效率、拆解、客观。" },
-    { label: "👑忠诚首辅", value: "用户的身份是“陛下”，你是“微臣”。你使用古文文案和奏章体。概念替换：任务→“奏折/国事”，目标→“千秋大业”，拖延→“荒废朝政”。时刻表现出对江山社稷的担忧，恭敬但敢于直谏。" },
-    { label: "☕全能管家", value: "用户的身份是“少爷/小姐”，你是“英式老管家”。语气极致优雅、谦卑、得体。使用敬语（为您效劳）。即使是催促，也要用最礼貌的方式表达，让用户感到不完成任务有失身份。" },
-    { label: "🚀硅谷PM", value: "你是一位资深产品经理。满嘴互联网黑话。关注MVP、迭代、复盘和ROI。将每一天视为一个Sprint。拒绝低效的情感交流，只看产出。" },
-    { label: "🛡️RPG向导", value: "你是奇幻游戏的NPC向导。语气热血、中二、充满史诗感。概念替换：任务→“主线/支线委托”，困难→“Boss战”，专注→“修炼”，睡觉→“回血”。完成任务时给予夸张的经验值奖励描述。" },
-    { label: "🧘佛系禅师", value: "你是一位得道高僧。语气平和、缓慢、充满禅机。不强迫用户做事，而是引导其“觉察”当下。用简短的隐喻回答问题。关键词：放下、呼吸、活在当下、随缘。" },
-    { label: "🤔苏格拉底", value: "你是一位睿智的哲学导师。尽量不要直接给出答案，而是通过提问引导用户自己思考。帮助用户探究行为背后的深层动机和价值观。关键词：反思、提问、启发、深度。" },
-    { label: "自定义 (完全自由发挥)", value: "" }
-];
+// --- Constants imported from constants/appConstants ---
 
 const coachService = new CoachService();
 
@@ -181,6 +166,13 @@ const App: React.FC = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [settingsTab, setSettingsTab] = useState<'coach' | 'theme' | 'data'>('coach');
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Navigation State (Lifted from Dashboard for Search)
     const [viewingTaskId, setViewingTaskId] = useState<string | null>(null);
@@ -1302,761 +1294,224 @@ const App: React.FC = () => {
         setSyncMessage({ type: 'success', text: "本地备份导出已开始" });
     };
 
+    const contextValue: AppContextType = {
+        state,
+        theme: currentTheme,
+        messages,
+        isLoading,
+        viewingTaskId, setViewingTaskId,
+        viewingGoalId, setViewingGoalId,
+        viewingVisionId, setViewingVisionId,
+        viewingReportId, setViewingReportId,
+        viewingSessionId, setViewingSessionId,
+        viewingHabitId, setViewingHabitId,
+
+        // Settings & UI State
+        localSettings, setLocalSettings,
+        settingsTab, setSettingsTab,
+        isTestingConnection, connectionTestResult,
+        isTestingStorage, storageTestResult,
+        isSyncing, syncMessage,
+        pendingCloudData, restoreSource,
+        fileInputRef,
+
+        actions: {
+            toggleTask, deleteTask, addTask, updateTask,
+            addGoal, toggleGoal, deleteGoal, updateGoal,
+            addVision, updateVision, deleteVision, toggleVisionArchived,
+            startSession, stopSession, addSession: addManualSession, updateSession, renameSession, deleteSession, checkIn: handleCheckIn,
+            addHabit: handleAddHabit, updateHabit: handleUpdateHabit, deleteHabit: handleDeleteHabit, toggleCheckIn: handleToggleCheckIn,
+            generateReport: generateReportContent, saveReport: addReport, updateReport, deleteReport,
+
+            // Chat Actions
+            sendMessage: handleSendMessage,
+            createNewChat,
+            selectChat,
+            deleteChat,
+
+            // Settings & Data Actions
+            saveSettings,
+            cancelSettings: () => setIsSettingsOpen(false),
+            updateTheme,
+            testConnection,
+            testStorageConnection,
+            syncToCloud,
+            syncFromCloud,
+            confirmRestore,
+            cancelRestore,
+            exportData,
+            importData,
+            handleImportClick
+        }
+    };
+
+    if (isMobile) {
+        return (
+            <AppProvider value={contextValue}>
+                <MobileLayout />
+            </AppProvider>
+        );
+    }
+
+
     return (
-        <div className={`flex h-screen overflow-hidden ${currentTheme.bg}`}>
+        <AppProvider value={contextValue}>
+            <div className={`flex h-screen overflow-hidden ${currentTheme.bg}`}>
 
-            {/* Main Content Area */}
-            <div className="flex-1 flex flex-col h-full transition-all duration-300">
+                {/* Main Content Area */}
+                <div className="flex-1 flex flex-col h-full transition-all duration-300">
 
-                {/* Navbar */}
-                <header className="bg-white/90 backdrop-blur-sm border-b border-slate-200 h-16 px-6 flex items-center justify-between shrink-0 z-10">
-                    <div className="flex items-center gap-2">
-                        <div className={`bg-${currentTheme.primary}-600 p-2 rounded-lg shadow-sm`}>
-                            <BarChart3 className="text-white w-5 h-5" />
-                        </div>
-                        <h1 className="text-xl font-bold font-serif text-slate-800 tracking-tight">LifeSync</h1>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {/* Cloud Status Indicator */}
-                        {state.storageConfig.provider === 'supabase' && (
-                            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-${currentTheme.primary}-50 text-${currentTheme.primary}-600 border border-${currentTheme.primary}-100`}>
-                                <Cloud size={12} />
-                                {isSyncing ? "云端同步中..." : "云端已连接"}
+                    {/* Navbar */}
+                    <header className="bg-white/90 backdrop-blur-sm border-b border-slate-200 h-16 px-6 flex items-center justify-between shrink-0 z-10">
+                        <div className="flex items-center gap-2">
+                            <div className={`bg-${currentTheme.primary}-600 p-2 rounded-lg shadow-sm`}>
+                                <BarChart3 className="text-white w-5 h-5" />
                             </div>
-                        )}
+                            <h1 className="text-xl font-bold font-serif text-slate-800 tracking-tight">LifeSync</h1>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            {/* Cloud Status Indicator */}
+                            {state.storageConfig.provider === 'supabase' && (
+                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-${currentTheme.primary}-50 text-${currentTheme.primary}-600 border border-${currentTheme.primary}-100`}>
+                                    <Cloud size={12} />
+                                    {isSyncing ? "云端同步中..." : "云端已连接"}
+                                </div>
+                            )}
 
-                        <button
-                            onClick={() => setIsSearchOpen(true)}
-                            className={`p-2 text-slate-500 hover:text-${currentTheme.primary}-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-2`}
-                        >
-                            <Search size={20} />
-                            <span className="hidden sm:inline text-sm font-medium">搜索</span>
-                        </button>
-                        <button
-                            onClick={() => setIsSettingsOpen(true)}
-                            className={`p-2 text-slate-500 hover:text-${currentTheme.primary}-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-2`}
-                        >
-                            <Settings size={20} />
-                            <span className="hidden sm:inline text-sm font-medium">设置</span>
-                        </button>
-                        {!isChatOpen && (
                             <button
-                                onClick={() => setIsChatOpen(true)}
-                                className={`flex items-center gap-2 bg-${currentTheme.primary}-600 text-white px-4 py-2 rounded-lg hover:bg-${currentTheme.primary}-700 transition-colors text-sm font-medium shadow-sm`}
+                                onClick={() => setIsSearchOpen(true)}
+                                className={`p-2 text-slate-500 hover:text-${currentTheme.primary}-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-2`}
                             >
-                                <MessageSquare size={16} /> 打开聊天
+                                <Search size={20} />
+                                <span className="hidden sm:inline text-sm font-medium">搜索</span>
                             </button>
-                        )}
+                            <button
+                                onClick={() => setIsSettingsOpen(true)}
+                                className={`p-2 text-slate-500 hover:text-${currentTheme.primary}-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-2`}
+                            >
+                                <Settings size={20} />
+                                <span className="hidden sm:inline text-sm font-medium">设置</span>
+                            </button>
+                            {!isChatOpen && (
+                                <button
+                                    onClick={() => setIsChatOpen(true)}
+                                    className={`flex items-center gap-2 bg-${currentTheme.primary}-600 text-white px-4 py-2 rounded-lg hover:bg-${currentTheme.primary}-700 transition-colors text-sm font-medium shadow-sm`}
+                                >
+                                    <MessageSquare size={16} /> 打开聊天
+                                </button>
+                            )}
+                        </div>
+                    </header>
+
+                    {/* Dashboard Content */}
+                    <div className="flex-1 overflow-hidden relative">
+                        <Dashboard />
                     </div>
-                </header>
-
-                {/* Dashboard Content */}
-                <div className="flex-1 overflow-hidden relative">
-                    <Dashboard
-                        tasks={state.tasks}
-                        goals={state.goals}
-                        visions={state.visions}
-                        sessions={state.sessions}
-                        reports={state.reports}
-                        activeSessionId={state.activeSessionId}
-                        theme={currentTheme}
-
-                        // Navigation Props
-                        viewingTaskId={viewingTaskId}
-                        setViewingTaskId={setViewingTaskId}
-                        viewingGoalId={viewingGoalId}
-                        setViewingGoalId={setViewingGoalId}
-                        viewingVisionId={viewingVisionId}
-                        setViewingVisionId={setViewingVisionId}
-                        viewingReportId={viewingReportId}
-                        setViewingReportId={setViewingReportId}
-                        viewingSessionId={viewingSessionId}
-                        setViewingSessionId={setViewingSessionId}
-                        viewingHabitId={viewingHabitId}
-                        setViewingHabitId={setViewingHabitId}
-
-                        onAddTask={addTask}
-                        onUpdateTask={updateTask}
-                        onToggleTask={toggleTask}
-                        onDeleteTask={deleteTask}
-
-                        onAddGoal={(title, deadline, color, visionId) => {
-                            addGoal(title, deadline, color, visionId);
-                            triggerAIFeedback(`我刚刚手动添加了一个新目标：${title}，截止日期是 ${deadline}`);
-                        }}
-                        onToggleGoal={toggleGoal}
-                        onDeleteGoal={deleteGoal}
-                        onUpdateGoal={updateGoal}
-
-                        onAddVision={addVision}
-                        onUpdateVision={updateVision}
-                        onDeleteVision={deleteVision}
-                        onToggleVisionArchived={toggleVisionArchived}
-
-                        onStartSession={startSession}
-                        onStopSession={stopSession}
-                        onAddSession={addManualSession}
-                        onUpdateSession={updateSession}
-                        onRenameSession={renameSession}
-                        onDeleteSession={deleteSession}
-
-                        habits={state.habits}
-                        onAddHabit={handleAddHabit}
-                        onUpdateHabit={handleUpdateHabit}
-                        onDeleteHabit={handleDeleteHabit}
-                        onToggleCheckIn={handleToggleCheckIn}
-
-                        onGenerateReport={generateReportContent}
-                        onSaveReport={(title, content) => addReport(title, content, new Date().toISOString())}
-                        onUpdateReport={updateReport}
-                        onDeleteReport={deleteReport}
-                        onCheckIn={handleCheckIn}
-                    />
                 </div>
-            </div>
 
-            {/* Chat Sidebar with Resizable Divider */}
-            {isChatOpen && (
-                <>
-                    <div
-                        role="separator"
-                        aria-orientation="vertical"
-                        aria-label="调整聊天面板宽度"
-                        className={`w-1.5 cursor-ew-resize bg-${currentTheme.primary}-100 hover:bg-${currentTheme.primary}-200 transition-colors`}
-                        onMouseDown={(e) => {
-                            e.preventDefault();
-                            setIsResizing(true);
-                        }}
-                    />
-                    <div
-                        className="relative h-full bg-white shadow-2xl flex flex-col transition-[width] duration-150 ease-out z-20"
-                        style={{ width: `${chatWidth}px` }}
-                    >
-                        <ChatInterface
-                            messages={messages}
-                            onSendMessage={handleSendMessage}
-                            isLoading={isLoading}
-                            settings={state.coachSettings}
-                            theme={currentTheme}
-                            chatSessions={state.chatSessions}
-                            currentChatId={state.currentChatId}
-                            onNewChat={createNewChat}
-                            onSelectChat={selectChat}
-                            onDeleteChat={deleteChat}
-                            onCloseChat={() => setIsChatOpen(false)}
+                {/* Chat Sidebar with Resizable Divider */}
+                {isChatOpen && (
+                    <>
+                        <div
+                            role="separator"
+                            aria-orientation="vertical"
+                            aria-label="调整聊天面板宽度"
+                            className={`w-1.5 cursor-ew-resize bg-${currentTheme.primary}-100 hover:bg-${currentTheme.primary}-200 transition-colors`}
+                            onMouseDown={(e) => {
+                                e.preventDefault();
+                                setIsResizing(true);
+                            }}
                         />
-                    </div>
-                </>
-            )}
-
-            {/* Search Modal */}
-            <SearchModal
-                isOpen={isSearchOpen}
-                onClose={() => setIsSearchOpen(false)}
-                theme={currentTheme}
-                tasks={state.tasks}
-                goals={state.goals}
-                visions={state.visions}
-                sessions={state.sessions}
-                habits={state.habits}
-                reports={state.reports}
-                onNavigate={(type, id) => {
-                    if (type === 'task') setViewingTaskId(id);
-                    if (type === 'goal') setViewingGoalId(id);
-                    if (type === 'vision') setViewingVisionId(id);
-                    if (type === 'report') setViewingReportId(id);
-                    if (type === 'session') setViewingSessionId(id);
-                    if (type === 'habit') setViewingHabitId(id);
-                }}
-            />
-
-            {/* Settings Modal */}
-            {isSettingsOpen && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-float max-h-[90vh] flex flex-col overflow-hidden border border-white/50">
-                        {/* Modal Header */}
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center shrink-0">
-                            <h2 className="text-xl font-bold font-serif text-slate-800 flex items-center gap-2">
-                                <Settings size={20} className={`text-${currentTheme.primary}-500`} /> 应用设置
-                            </h2>
-                            <button onClick={() => setIsSettingsOpen(false)}><X className="text-slate-400 hover:text-slate-600" size={24} /></button>
+                        <div
+                            className="relative h-full bg-white shadow-2xl flex flex-col transition-[width] duration-150 ease-out z-20"
+                            style={{ width: `${chatWidth}px` }}
+                        >
+                            <ChatInterface
+                                messages={messages}
+                                onSendMessage={handleSendMessage}
+                                isLoading={isLoading}
+                                settings={state.coachSettings}
+                                theme={currentTheme}
+                                chatSessions={state.chatSessions}
+                                currentChatId={state.currentChatId}
+                                onNewChat={createNewChat}
+                                onSelectChat={selectChat}
+                                onDeleteChat={deleteChat}
+                                onCloseChat={() => setIsChatOpen(false)}
+                            />
                         </div>
+                    </>
+                )}
 
-                        {/* Tabs */}
-                        <div className="flex border-b border-slate-100 shrink-0">
-                            <button
-                                onClick={() => setSettingsTab('coach')}
-                                className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${settingsTab === 'coach' ? `border-${currentTheme.primary}-600 text-${currentTheme.primary}-600` : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                            >
-                                <span className="flex items-center justify-center gap-2"><User size={16} /> 教练设置</span>
-                            </button>
-                            <button
-                                onClick={() => setSettingsTab('theme')}
-                                className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${settingsTab === 'theme' ? `border-${currentTheme.primary}-600 text-${currentTheme.primary}-600` : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                            >
-                                <span className="flex items-center justify-center gap-2"><Palette size={16} /> 风格主题</span>
-                            </button>
-                            <button
-                                onClick={() => setSettingsTab('data')}
-                                className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${settingsTab === 'data' ? `border-${currentTheme.primary}-600 text-${currentTheme.primary}-600` : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                            >
-                                <span className="flex items-center justify-center gap-2"><Database size={16} /> API/数据库</span>
-                            </button>
-                        </div>
+                {/* Search Modal */}
+                <SearchModal
+                    isOpen={isSearchOpen}
+                    onClose={() => setIsSearchOpen(false)}
+                    theme={currentTheme}
+                    tasks={state.tasks}
+                    goals={state.goals}
+                    visions={state.visions}
+                    sessions={state.sessions}
+                    habits={state.habits}
+                    reports={state.reports}
+                    onNavigate={(type, id) => {
+                        if (type === 'task') setViewingTaskId(id);
+                        if (type === 'goal') setViewingGoalId(id);
+                        if (type === 'vision') setViewingVisionId(id);
+                        if (type === 'report') setViewingReportId(id);
+                        if (type === 'session') setViewingSessionId(id);
+                        if (type === 'habit') setViewingHabitId(id);
+                    }}
+                />
 
-                        {/* Modal Content - Scrollable */}
-                        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-50/50">
+                {/* Settings Modal */}
+                {isSettingsOpen && (
+                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                <h2 className="text-xl font-bold font-serif text-slate-800 flex items-center gap-2">
+                                    <Settings size={24} className={`text-${currentTheme.primary}-600`} /> 设置
+                                </h2>
+                                <button onClick={() => setIsSettingsOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                                    <X size={24} className="text-slate-500" />
+                                </button>
+                            </div>
 
-                            {/* TAB 1: Coach Settings */}
-                            {settingsTab === 'coach' && (
-                                <div className="space-y-5">
-                                    {/* Names */}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">你的称呼</label>
-                                            <input
-                                                value={localSettings.coach.userName || ''}
-                                                onChange={(e) => setLocalSettings(prev => ({ ...prev, coach: { ...prev.coach, userName: e.target.value } }))}
-                                                placeholder="例如: 学员, 小明"
-                                                className={`w-full bg-white text-slate-900 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-${currentTheme.primary}-500 outline-none`}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">AI 教练称呼</label>
-                                            <input
-                                                value={localSettings.coach.name}
-                                                onChange={(e) => setLocalSettings(prev => ({ ...prev, coach: { ...prev.coach, name: e.target.value } }))}
-                                                className={`w-full bg-white text-slate-900 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-${currentTheme.primary}-500 outline-none`}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Style Dropdown */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">AI 教练风格 (提示词)</label>
-                                        <Select
-                                            value={localSettings.coach.style}
-                                            onChange={handleStyleChange}
-                                            options={COACH_STYLES.map(s => ({ label: s.label, value: s.label }))}
-                                            theme={currentTheme}
-                                        />
-                                    </div>
-
-                                    {/* System Instruction */}
-                                    <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Sparkles className={`w-4 h-4 text-${currentTheme.primary}-500`} />
-                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">系统提示词 (Prompt)</label>
-                                        </div>
-                                        <textarea
-                                            value={localSettings.coach.customInstruction || ''}
-                                            onChange={(e) => setLocalSettings(prev => ({ ...prev, coach: { ...prev.coach, customInstruction: e.target.value } }))}
-                                            rows={4}
-                                            placeholder="在此输入或修改 AI 的人设提示词..."
-                                            className={`w-full bg-slate-50 text-slate-900 border border-slate-200 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-${currentTheme.primary}-500 outline-none font-mono leading-relaxed`}
-                                        />
-                                        <p className="text-xs text-slate-400 mt-2">提示：上方下拉菜单会自动填充此处，你也可以手动修改细节。</p>
-                                    </div>
-
-                                    {/* User Context */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">你的背景信息</label>
-                                        <textarea
-                                            value={localSettings.coach.userContext}
-                                            onChange={(e) => setLocalSettings(prev => ({ ...prev, coach: { ...prev.coach, userContext: e.target.value } }))}
-                                            rows={3}
-                                            placeholder="告诉教练你的工作、学习或目标..."
-                                            className={`w-full bg-white text-slate-900 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-${currentTheme.primary}-500 outline-none resize-none shadow-sm`}
-                                        />
-                                    </div>
-
-                                    {/* Report Prompt */}
-                                    <div className="border-t border-slate-100 pt-4">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <FileText className={`w-4 h-4 text-${currentTheme.primary}-500`} />
-                                            <label className="block text-sm font-medium text-slate-700">日报生成额外指令</label>
-                                        </div>
-                                        <textarea
-                                            value={localSettings.coach.customReportInstruction || ''}
-                                            onChange={(e) => setLocalSettings(prev => ({ ...prev, coach: { ...prev.coach, customReportInstruction: e.target.value } }))}
-                                            rows={3}
-                                            placeholder="例如：请用全英文生成点评..."
-                                            className={`w-full bg-white text-slate-900 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-${currentTheme.primary}-500 outline-none font-mono shadow-sm`}
-                                        />
-                                    </div>
-
-                                    {/* Debug Mode Toggle */}
-                                    <div className="pt-4 border-t border-slate-100">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <Bug size={16} className="text-amber-500" />
-                                                    <label className="font-medium text-slate-700">调试模式 (Debug Mode)</label>
-                                                </div>
-                                                <p className="text-xs text-slate-500">开启后将在对话框中显示发送给 AI 的完整 Prompt。</p>
-                                            </div>
-                                            <button
-                                                onClick={() => setLocalSettings(prev => ({ ...prev, coach: { ...prev.coach, debugMode: !prev.coach.debugMode } }))}
-                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localSettings.coach.debugMode ? `bg-${currentTheme.primary}-600` : 'bg-slate-200'}`}
-                                            >
-                                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${localSettings.coach.debugMode ? 'translate-x-6' : 'translate-x-1'}`} />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Context Mode Toggle */}
-                                    <div className="pt-4 border-t border-slate-100">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <MessageSquare size={16} className={`text-${currentTheme.primary}-500`} />
-                                                    <label className="font-medium text-slate-700">上下文记忆 (Context Memory)</label>
-                                                </div>
-                                                <p className="text-xs text-slate-500">开启后 AI 将记住之前的对话内容。关闭可节省 Token 但 AI 会忘记上下文。</p>
-                                            </div>
-                                            <button
-                                                onClick={() => setLocalSettings(prev => ({ ...prev, coach: { ...prev.coach, enableContext: !prev.coach.enableContext } }))}
-                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${localSettings.coach.enableContext ? `bg-${currentTheme.primary}-600` : 'bg-slate-200'}`}
-                                            >
-                                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${localSettings.coach.enableContext ? 'translate-x-6' : 'translate-x-1'}`} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* TAB 2: Theme Settings */}
-                            {settingsTab === 'theme' && (
-                                <div className="grid grid-cols-2 gap-4">
-                                    {Object.keys(THEMES).map((themeKey) => {
-                                        const theme = THEMES[themeKey];
-                                        const isActive = state.theme === themeKey;
-                                        return (
-                                            <button
-                                                key={themeKey}
-                                                onClick={() => updateTheme(themeKey)}
-                                                className={`group relative p-4 rounded-xl border transition-all duration-200 overflow-hidden text-left hover:shadow-md ${isActive ? `border-${theme.primary}-500 ring-1 ring-${theme.primary}-500 bg-white` : 'border-slate-200 bg-white hover:border-slate-300'}`}
-                                            >
-                                                {/* Color Preview */}
-                                                <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-${theme.primary}-50 to-${theme.secondary}-100 rounded-bl-full opacity-50 transition-opacity group-hover:opacity-80`}></div>
-
-                                                <div className="relative z-10 flex flex-col gap-2">
-                                                    <div className={`w-8 h-8 rounded-full bg-${theme.primary}-500 flex items-center justify-center text-white shadow-sm`}>
-                                                        {isActive && <Check size={16} strokeWidth={3} />}
-                                                    </div>
-                                                    <div>
-                                                        <h4 className={`font-medium ${isActive ? `text-${theme.primary}-700` : 'text-slate-700'}`}>{theme.name}</h4>
-                                                        <p className="text-xs text-slate-400">优雅柔和 悬浮质感</p>
-                                                    </div>
-                                                </div>
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-
-                            {/* TAB 3: API & Data */}
-                            {settingsTab === 'data' && (
-                                <div className="space-y-8">
-                                    {/* LLM Configuration */}
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Server className={`w-5 h-5 text-${currentTheme.primary}-600`} />
-                                            <h4 className="font-medium text-slate-800">模型服务商配置 (LLM)</h4>
-                                        </div>
-
-                                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-700 mb-2">选择服务商</label>
-                                                <select
-                                                    value={localSettings.coach.modelConfig?.provider || 'gemini'}
-                                                    onChange={(e) => handleProviderPreset(e.target.value)}
-                                                    className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                >
-                                                    <option value="gemini">Google Gemini (默认)</option>
-                                                    <option value="deepseek">DeepSeek (官方 API)</option>
-                                                    <option value="siliconflow">硅基流动 (SiliconFlow)</option>
-                                                    <option value="openai">OpenAI (或兼容接口)</option>
-                                                </select>
-                                            </div>
-
-                                            {/* Gemini Specific Fields */}
-                                            {localSettings.coach.modelConfig?.provider === 'gemini' && (
-                                                <div className="space-y-4 animate-in slide-in-from-top-2">
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                                                            <Key size={14} /> Custom API Key (可选)
-                                                        </label>
-                                                        <input
-                                                            type="password"
-                                                            value={localSettings.coach.modelConfig?.apiKey || ''}
-                                                            onChange={(e) => setLocalSettings(prev => ({
-                                                                ...prev,
-                                                                coach: {
-                                                                    ...prev.coach,
-                                                                    modelConfig: { ...prev.coach.modelConfig, apiKey: e.target.value }
-                                                                }
-                                                            }))}
-                                                            placeholder="留空使用系统默认 Key"
-                                                            className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                                                            <Box size={14} /> Model ID
-                                                        </label>
-                                                        <input
-                                                            value={localSettings.coach.modelConfig?.modelId || 'gemini-2.5-flash'}
-                                                            onChange={(e) => setLocalSettings(prev => ({
-                                                                ...prev,
-                                                                coach: {
-                                                                    ...prev.coach,
-                                                                    modelConfig: { ...prev.coach.modelConfig, modelId: e.target.value }
-                                                                }
-                                                            }))}
-                                                            placeholder="gemini-2.5-flash"
-                                                            className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Generic OpenAI Fields */}
-                                            {localSettings.coach.modelConfig?.provider !== 'gemini' && (
-                                                <div className="space-y-4 animate-in slide-in-from-top-2">
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                                                            <Key size={14} /> API Key <span className="text-red-500">*</span>
-                                                        </label>
-                                                        <input
-                                                            type="password"
-                                                            value={localSettings.coach.modelConfig?.apiKey || ''}
-                                                            onChange={(e) => setLocalSettings(prev => ({
-                                                                ...prev,
-                                                                coach: {
-                                                                    ...prev.coach,
-                                                                    modelConfig: { ...prev.coach.modelConfig, apiKey: e.target.value }
-                                                                }
-                                                            }))}
-                                                            placeholder="sk-..."
-                                                            className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                        />
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                                                                <LinkIcon size={14} /> Base URL
-                                                            </label>
-                                                            <input
-                                                                value={localSettings.coach.modelConfig?.baseUrl || ''}
-                                                                onChange={(e) => setLocalSettings(prev => ({
-                                                                    ...prev,
-                                                                    coach: {
-                                                                        ...prev.coach,
-                                                                        modelConfig: { ...prev.coach.modelConfig, baseUrl: e.target.value }
-                                                                    }
-                                                                }))}
-                                                                placeholder="https://api..."
-                                                                className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
-                                                                <Box size={14} /> Model ID
-                                                            </label>
-                                                            <input
-                                                                value={localSettings.coach.modelConfig?.modelId || ''}
-                                                                onChange={(e) => setLocalSettings(prev => ({
-                                                                    ...prev,
-                                                                    coach: {
-                                                                        ...prev.coach,
-                                                                        modelConfig: { ...prev.coach.modelConfig, modelId: e.target.value }
-                                                                    }
-                                                                }))}
-                                                                placeholder="gpt-3.5-turbo"
-                                                                className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Test Connection Button & Status */}
-                                            <div className="pt-2">
-                                                <button
-                                                    onClick={testConnection}
-                                                    disabled={isTestingConnection}
-                                                    className={`w-full flex items-center justify-center gap-2 border border-${currentTheme.primary}-200 bg-${currentTheme.primary}-50 text-${currentTheme.primary}-700 hover:bg-${currentTheme.primary}-100 font-medium py-2 rounded-lg transition-colors`}
-                                                >
-                                                    {isTestingConnection ? <Loader2 className="animate-spin" size={16} /> : <PlugZap size={16} />}
-                                                    {isTestingConnection ? "正在测试连接..." : "测试 API 连接"}
-                                                </button>
-
-                                                {connectionTestResult && (
-                                                    <div className={`mt-3 p-3 rounded-lg text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200 ${connectionTestResult.type === 'success'
-                                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                                        : 'bg-red-50 text-red-700 border border-red-200'
-                                                        }`}>
-                                                        {connectionTestResult.type === 'success' ? <Check size={16} /> : <AlertCircle size={16} />}
-                                                        <span>{connectionTestResult.message}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Database Configuration */}
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Database className={`w-5 h-5 text-${currentTheme.primary}-600`} />
-                                            <h4 className="font-medium text-slate-800">云端数据库配置 (Supabase)</h4>
-                                        </div>
-
-                                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-                                            <div className="flex bg-white rounded-lg p-1 border border-slate-200">
-                                                <button
-                                                    onClick={() => setLocalSettings(prev => ({ ...prev, storage: { ...prev.storage, provider: 'local' } }))}
-                                                    className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${localSettings.storage.provider === 'local' ? `bg-${currentTheme.primary}-100 text-${currentTheme.primary}-700 shadow-sm` : 'text-slate-500 hover:text-slate-700'}`}
-                                                >
-                                                    <HardDrive size={14} className="inline mr-1" /> 本地存储
-                                                </button>
-                                                <button
-                                                    onClick={() => setLocalSettings(prev => ({ ...prev, storage: { ...prev.storage, provider: 'supabase' } }))}
-                                                    className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${localSettings.storage.provider === 'supabase' ? `bg-${currentTheme.primary}-100 text-${currentTheme.primary}-700 shadow-sm` : 'text-slate-500 hover:text-slate-700'}`}
-                                                >
-                                                    <Cloud size={14} className="inline mr-1" /> Supabase 云端
-                                                </button>
-                                            </div>
-
-                                            {localSettings.storage.provider === 'supabase' && (
-                                                <div className="space-y-4 animate-in slide-in-from-top-2">
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-slate-700 mb-1">Project URL</label>
-                                                        <input
-                                                            value={localSettings.storage.supabaseUrl || ''}
-                                                            onChange={(e) => setLocalSettings(prev => ({ ...prev, storage: { ...prev.storage, supabaseUrl: e.target.value } }))}
-                                                            placeholder="https://xyz.supabase.co"
-                                                            className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-slate-700 mb-1">Anon API Key</label>
-                                                        <input
-                                                            type="password"
-                                                            value={localSettings.storage.supabaseKey || ''}
-                                                            onChange={(e) => setLocalSettings(prev => ({ ...prev, storage: { ...prev.storage, supabaseKey: e.target.value } }))}
-                                                            placeholder="eyJh..."
-                                                            className="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                        />
-                                                        <p className="text-xs text-slate-500 mt-1 flex items-start gap-1">
-                                                            <HelpCircle size={12} className="mt-0.5 shrink-0" />
-                                                            <span>位置：Project Settings (左下角齿轮) -&gt; API -&gt; Project API Keys -&gt; 复制 <b>anon public</b></span>
-                                                        </p>
-                                                    </div>
-
-                                                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
-                                                        <p className="flex items-center gap-1 font-bold mb-1"><Info size={12} /> 配置说明</p>
-                                                        <p>请在 Supabase SQL Editor 中运行以下命令来创建数据表：</p>
-                                                        <code className="block bg-white border border-amber-100 p-2 rounded mt-1 select-all font-mono">
-                                                            create table {SUPABASE_TABLE} (<br />
-                                                            &nbsp;&nbsp;id text primary key,<br />
-                                                            &nbsp;&nbsp;data jsonb,<br />
-                                                            &nbsp;&nbsp;updated_at timestamp with time zone<br />
-                                                            );
-                                                            <br /><br />
-                                                            -- 关键：允许读写<br />
-                                                            alter table {SUPABASE_TABLE} disable row level security;
-                                                        </code>
-                                                    </div>
-
-                                                    <div className="pt-2">
-                                                        <button
-                                                            onClick={testStorageConnection}
-                                                            disabled={isTestingStorage}
-                                                            className={`w-full flex items-center justify-center gap-2 border border-${currentTheme.primary}-200 bg-${currentTheme.primary}-50 text-${currentTheme.primary}-700 hover:bg-${currentTheme.primary}-100 font-medium py-2 rounded-lg transition-colors`}
-                                                        >
-                                                            {isTestingStorage ? <Loader2 className="animate-spin" size={16} /> : <PlugZap size={16} />}
-                                                            {isTestingStorage ? "正在测试连接..." : "测试数据库连接"}
-                                                        </button>
-
-                                                        {storageTestResult && (
-                                                            <div className={`mt-3 p-3 rounded-lg text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200 ${storageTestResult.type === 'success'
-                                                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                                                : 'bg-red-50 text-red-700 border border-red-200'
-                                                                }`}>
-                                                                {storageTestResult.type === 'success' ? <Check size={16} /> : <AlertCircle size={16} />}
-                                                                <span>{storageTestResult.message}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Sync & Backup Actions */}
-                                    <div className="border-t border-slate-200 pt-6 space-y-3">
-                                        <h4 className="font-medium text-slate-800">数据同步与备份</h4>
-
-                                        {/* Cloud Sync Buttons */}
-                                        {state.storageConfig.provider === 'supabase' && (
-                                            <div className="space-y-3 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <button
-                                                        onClick={() => syncToCloud(false)}
-                                                        disabled={isSyncing}
-                                                        className={`flex items-center justify-center gap-2 border border-${currentTheme.primary}-200 bg-white hover:bg-${currentTheme.primary}-50 text-${currentTheme.primary}-700 font-medium py-2.5 rounded-lg transition-colors shadow-sm`}
-                                                    >
-                                                        <UploadCloud size={18} /> 上传到云端
-                                                    </button>
-                                                    <button
-                                                        onClick={syncFromCloud}
-                                                        disabled={isSyncing}
-                                                        className={`flex items-center justify-center gap-2 border border-${currentTheme.primary}-200 bg-white hover:bg-${currentTheme.primary}-50 text-${currentTheme.primary}-700 font-medium py-2.5 rounded-lg transition-colors shadow-sm`}
-                                                    >
-                                                        <DownloadCloud size={18} /> 从云端恢复
-                                                    </button>
-                                                </div>
-
-                                                {/* Sync Feedback Message */}
-                                                {syncMessage && (
-                                                    <div className={`p-3 rounded-lg text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200 ${syncMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                                                        syncMessage.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
-                                                            'bg-blue-50 text-blue-700 border border-blue-200'
-                                                        }`}>
-                                                        {syncMessage.type === 'info' && <Loader2 className="animate-spin" size={16} />}
-                                                        {syncMessage.type === 'success' && <Check size={16} />}
-                                                        {syncMessage.type === 'error' && <AlertCircle size={16} />}
-                                                        <span>{syncMessage.text}</span>
-                                                    </div>
-                                                )}
-
-                                                {/* Restoration Confirmation Card */}
-                                                {pendingCloudData && (
-                                                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4 animate-in fade-in slide-in-from-top-2">
-                                                        <div className="flex items-start gap-3">
-                                                            <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={20} />
-                                                            <div>
-                                                                <h5 className="font-bold text-amber-800">
-                                                                    {restoreSource === 'cloud' ? '确认从云端恢复？' : '确认导入本地备份？'}
-                                                                </h5>
-                                                                <p className="text-sm text-amber-700 mt-1">
-                                                                    备份数据包含 {pendingCloudData.tasks.length} 个任务，{pendingCloudData.goals.length} 个目标。
-                                                                    <br />
-                                                                    <span className="font-bold">警告：此操作将覆盖当前本地的所有数据。</span>
-                                                                </p>
-                                                                <div className="flex gap-3 mt-3">
-                                                                    <button
-                                                                        onClick={cancelRestore}
-                                                                        className="px-3 py-1.5 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-100 text-sm font-medium"
-                                                                    >
-                                                                        取消
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={confirmRestore}
-                                                                        className="px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium shadow-sm"
-                                                                    >
-                                                                        确认覆盖
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <button
-                                                onClick={exportData}
-                                                className="flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium py-3 rounded-lg transition-colors"
-                                            >
-                                                <Download size={18} /> 导出备份
-                                            </button>
-                                            <button
-                                                onClick={handleImportClick}
-                                                className="flex items-center justify-center gap-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium py-3 rounded-lg transition-colors"
-                                            >
-                                                <FileJson size={18} /> 导入备份
-                                            </button>
-                                            <input
-                                                type="file"
-                                                ref={fileInputRef}
-                                                onChange={importData}
-                                                accept=".json"
-                                                className="hidden"
-                                            />
-                                        </div>
-
-                                        {/* Local Import Confirmation Card (When Supabase is NOT enabled) */}
-                                        {pendingCloudData && state.storageConfig.provider === 'local' && (
-                                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4 animate-in fade-in slide-in-from-top-2">
-                                                <div className="flex items-start gap-3">
-                                                    <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={20} />
-                                                    <div>
-                                                        <h5 className="font-bold text-amber-800">确认导入本地备份？</h5>
-                                                        <p className="text-sm text-amber-700 mt-1">
-                                                            备份数据包含 {pendingCloudData.tasks.length} 个任务，{pendingCloudData.goals.length} 个目标。
-                                                            <br />
-                                                            <span className="font-bold">警告：此操作将覆盖当前本地的所有数据。</span>
-                                                        </p>
-                                                        <div className="flex gap-3 mt-3">
-                                                            <button
-                                                                onClick={cancelRestore}
-                                                                className="px-3 py-1.5 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-100 text-sm font-medium"
-                                                            >
-                                                                取消
-                                                            </button>
-                                                            <button
-                                                                onClick={confirmRestore}
-                                                                className="px-3 py-1.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium shadow-sm"
-                                                            >
-                                                                确认覆盖
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                        </div>
-
-                        {/* Footer Buttons */}
-                        <div className="p-6 border-t border-slate-100 bg-white shrink-0">
-                            {settingsTab === 'coach' || settingsTab === 'data' ? (
-                                <div className="flex gap-3">
-                                    <button
-                                        onClick={() => setIsSettingsOpen(false)}
-                                        className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-                                    >
-                                        取消
-                                    </button>
-                                    <button
-                                        onClick={saveSettings}
-                                        className={`flex-1 px-4 py-2 bg-${currentTheme.primary}-600 text-white rounded-lg hover:bg-${currentTheme.primary}-700 shadow-lg hover:shadow-xl transition-all flex justify-center items-center gap-2`}
-                                    >
-                                        <Save size={18} /> 保存设置
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="flex justify-end">
-                                    <button
-                                        onClick={() => setIsSettingsOpen(false)}
-                                        className="px-6 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-                                    >
-                                        关闭
-                                    </button>
-                                </div>
-                            )}
+                            <SettingsView
+                                state={state}
+                                localSettings={localSettings}
+                                setLocalSettings={setLocalSettings}
+                                currentTheme={currentTheme}
+                                settingsTab={settingsTab}
+                                setSettingsTab={setSettingsTab}
+                                onSave={saveSettings}
+                                onCancel={() => setIsSettingsOpen(false)}
+                                onUpdateTheme={updateTheme}
+                                isTestingConnection={isTestingConnection}
+                                connectionTestResult={connectionTestResult}
+                                onTestConnection={testConnection}
+                                isTestingStorage={isTestingStorage}
+                                storageTestResult={storageTestResult}
+                                onTestStorageConnection={testStorageConnection}
+                                isSyncing={isSyncing}
+                                syncMessage={syncMessage}
+                                onSyncToCloud={syncToCloud}
+                                onSyncFromCloud={syncFromCloud}
+                                pendingCloudData={pendingCloudData}
+                                restoreSource={restoreSource}
+                                onConfirmRestore={confirmRestore}
+                                onCancelRestore={cancelRestore}
+                                onExportData={exportData}
+                                onImportData={importData}
+                                onHandleImportClick={handleImportClick}
+                                fileInputRef={fileInputRef}
+                            />
                         </div>
                     </div>
-                </div>
-            )}
+                )}
 
-        </div>
+            </div>
+        </AppProvider>
     );
 };
 
