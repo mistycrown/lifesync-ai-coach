@@ -613,39 +613,43 @@ const Dashboard: React.FC<DashboardProps> = ({
               {sortedGoals.map(goal => (
                 <div
                   key={goal.id}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer ${goal.completed ? 'bg-slate-50 border-slate-100 opacity-70' : (!goal.color?.startsWith('#') ? `border-${theme.primary}-100 bg-gradient-to-br from-${theme.primary}-50/50 to-white shadow-sm hover:shadow-md` : 'shadow-sm hover:shadow-md')}`}
-                  style={!goal.completed && goal.color?.startsWith('#') ? {
-                    borderColor: goal.color,
-                    backgroundColor: `${goal.color}20`
-                  } : {}}
+                  className={`group flex items-center gap-3 p-3 rounded-xl border ${goal.completed ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-100 shadow-sm'} transition-all hover:shadow-md cursor-pointer relative overflow-hidden`}
                   onClick={() => setViewingGoalId(goal.id)}
                 >
+                  {/* Color Bar Indicator */}
+                  {goal.color && (
+                    <div
+                      className="absolute left-0 top-0 bottom-0 w-1"
+                      style={{ backgroundColor: goal.color }}
+                    />
+                  )}
 
-                  <div className="flex justify-between items-start group">
-                    <div className="flex items-start gap-3 flex-1">
-                      <button onClick={(e) => { e.stopPropagation(); onToggleGoal(goal.id); }} className={`mt-0.5 text-slate-400 hover:text-${theme.primary}-600 transition-colors`}>
-                        {goal.completed ? <CheckCircle className="text-emerald-500" size={18} /> : <Circle size={18} />}
-                      </button>
-                      <div>
-                        <h4 className={`font-medium text-sm ${goal.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{goal.title}</h4>
-                        <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
-                          <Calendar size={12} className={`text-${theme.primary}-500`} />
-                          {new Date(goal.deadline).toLocaleDateString()}
-                          <span className="ml-2 flex items-center gap-1 text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">
-                            <Clock size={8} />
-                            {Math.floor(
-                              sessions.filter(s => {
-                                const task = tasks.find(t => t.id === s.taskId);
-                                return task && task.goalId === goal.id;
-                              }).reduce((acc, s) => acc + s.durationSeconds, 0) / 60
-                            )}m
-                          </span>
-                        </div>
-                      </div>
+                  <button onClick={(e) => { e.stopPropagation(); onToggleGoal(goal.id); }} className={`ml-2 text-slate-300 hover:text-${theme.primary}-500 transition-colors`}>
+                    {goal.completed ? <CheckCircle className="text-emerald-500" size={20} /> : <Circle size={20} />}
+                  </button>
+
+                  <div className="flex-1 flex flex-col">
+                    <span className={`text-sm ${goal.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                      {goal.title}
+                    </span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
+                        <Calendar size={8} /> {new Date(goal.deadline).toLocaleDateString()}
+                      </span>
+                      <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
+                        <Clock size={8} />
+                        {Math.floor(
+                          sessions.filter(s => {
+                            const task = tasks.find(t => t.id === s.taskId);
+                            return task && task.goalId === goal.id;
+                          }).reduce((acc, s) => acc + s.durationSeconds, 0) / 60
+                        )}m
+                      </span>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e) => { e.stopPropagation(); onDeleteGoal(goal.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14} /></button>
-                    </div>
+                  </div>
+
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={(e) => { e.stopPropagation(); onDeleteGoal(goal.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14} /></button>
                   </div>
                 </div>
               ))}
