@@ -707,6 +707,8 @@ ${JSON.stringify(result.toolCalls, null, 2)}
             setConnectionTestResult({ type: 'success', message: "API 连接成功！模型响应正常。" });
         } catch (error: any) {
             setConnectionTestResult({ type: 'error', message: "连接失败: " + (error.message || "未知错误") });
+        } finally {
+            setIsTestingConnection(false);
         }
     };
 

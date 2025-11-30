@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Settings, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson, Bug } from 'lucide-react';
 import { Select } from './Select';
 import { AppState, CoachSettings, StorageConfig, ThemeConfig } from '../types';
@@ -74,6 +74,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onHandleImportClick,
     fileInputRef
 }) => {
+    const [isSaved, setIsSaved] = useState(false);
+    const isMounted = useRef(true);
+
+    useEffect(() => {
+        isMounted.current = true;
+        return () => { isMounted.current = false; };
+    }, []);
+
+    const handleSave = () => {
+        onSave();
+        if (isMounted.current) {
+            setIsSaved(true);
+            setTimeout(() => {
+                if (isMounted.current) setIsSaved(false);
+            }, 2000);
+        }
+    };
 
     const handleStyleChange = (selectedStyle: string) => {
         const preset = COACH_STYLES.find(s => s.label === selectedStyle);
@@ -605,10 +622,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {/* Footer Buttons */}
             <div className="p-4 border-t border-slate-100 bg-white shrink-0">
                 <button
-                    onClick={onSave}
-                    className={`w-full px-4 py-2 bg-${currentTheme.primary}-600 text-white rounded-lg hover:bg-${currentTheme.primary}-700 shadow-sm hover:shadow-md transition-all flex justify-center items-center gap-2 text-sm font-medium`}
+                    onClick={handleSave}
+                    disabled={isSaved}
+                    className={`w-full px-4 py-2 ${isSaved ? 'bg-emerald-500 hover:bg-emerald-600' : `bg-${currentTheme.primary}-600 hover:bg-${currentTheme.primary}-700`} text-white rounded-lg shadow-sm hover:shadow-md transition-all flex justify-center items-center gap-2 text-sm font-medium`}
                 >
-                    <Save size={16} /> 保存设置
+                    {isSaved ? <Check size={16} /> : <Save size={16} />}
+                    {isSaved ? "保存成功" : "保存设置"}
                 </button>
             </div>
         </div>
