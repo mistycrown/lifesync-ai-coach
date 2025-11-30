@@ -816,6 +816,7 @@ ${JSON.stringify(result.toolCalls, null, 2)}
 
     const syncFromCloud = async () => {
         const config = localSettings.storage;
+        console.log('Sync from cloud triggered', config);
         if (!config.supabaseUrl || !config.supabaseKey) {
             setSyncMessage({ type: 'error', text: "请先配置并填写 Supabase URL 和 Key" });
             return;
@@ -841,6 +842,7 @@ ${JSON.stringify(result.toolCalls, null, 2)}
 
     const confirmRestore = () => {
         if (!pendingCloudData) return;
+        console.log('Restoring data:', pendingCloudData);
         setState(pendingCloudData);
         setLocalSettings({
             coach: pendingCloudData.coachSettings,

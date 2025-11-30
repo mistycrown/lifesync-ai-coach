@@ -107,7 +107,8 @@ export class StorageService {
                 headers: {
                     'apikey': config.supabaseKey!,
                     'Authorization': `Bearer ${config.supabaseKey}`,
-                }
+                },
+                cache: 'no-store'
             });
             if (!response.ok) return null;
             const json = await response.json();

@@ -474,10 +474,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <h4 className="font-medium text-slate-800">数据同步与备份</h4>
 
                             {/* Cloud Sync Buttons */}
-                            {state.storageConfig.provider === 'supabase' && (
+                            {/* Cloud Sync Buttons */}
+                            {localSettings.storage.provider === 'supabase' && (
                                 <div className="space-y-3 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                                     <div className="grid grid-cols-2 gap-3">
                                         <button
+                                            type="button"
                                             onClick={() => onSyncToCloud(false)}
                                             disabled={isSyncing}
                                             className={`flex items-center justify-center gap-2 border border-${currentTheme.primary}-200 bg-white hover:bg-${currentTheme.primary}-50 text-${currentTheme.primary}-700 font-medium py-2.5 rounded-lg transition-colors shadow-sm`}
@@ -485,6 +487,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                             <UploadCloud size={18} /> 上传到云端
                                         </button>
                                         <button
+                                            type="button"
                                             onClick={onSyncFromCloud}
                                             disabled={isSyncing}
                                             className={`flex items-center justify-center gap-2 border border-${currentTheme.primary}-200 bg-white hover:bg-${currentTheme.primary}-50 text-${currentTheme.primary}-700 font-medium py-2.5 rounded-lg transition-colors shadow-sm`}
@@ -495,7 +498,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                                     {/* Sync Feedback Message */}
                                     {syncMessage && (
-                                        <div className={`p-3 rounded-lg text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200 ${syncMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                        <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${syncMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
                                             syncMessage.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
                                                 'bg-blue-50 text-blue-700 border border-blue-200'
                                             }`}>
