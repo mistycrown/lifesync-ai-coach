@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { History, ChevronLeft, ChevronRight, FileText, Loader2, Save, Edit2, Trash2 } from 'lucide-react';
-import { Session, DailyReport, ThemeConfig, Task, Goal } from '../../types';
+import { Session, DailyReport, ThemeConfig, Task, Goal, Habit } from '../../types';
 import { CalendarPopover } from '../Calendar';
 import { TimePicker } from '../TimePicker';
 import { WeeklyTimeline } from '../WeeklyTimeline';
@@ -10,6 +10,7 @@ interface RecordsSectionProps {
     sessions: Session[];
     tasks: Task[];
     goals: Goal[];
+    habits: Habit[];
     reports: DailyReport[];
     theme: ThemeConfig;
     onAddSession: (label: string, startTime: string, durationSeconds: number, taskId?: string) => void;
@@ -27,6 +28,7 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
     sessions,
     tasks,
     goals,
+    habits,
     reports,
     theme,
     onAddSession,
@@ -251,6 +253,13 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
                         const getSessionColor = (session: Session) => {
                             if (session.label.includes('早安')) return 'bg-orange-500';
                             if (session.label.includes('晚安')) return 'bg-blue-500';
+
+                            // Check habit color
+                            if (session.habitId) {
+                                const habit = habits.find(h => h.id === session.habitId);
+                                if (habit && habit.color) return habit.color;
+                            }
+
                             const task = tasks.find(t => t.id === session.taskId);
                             if (task && task.goalId) {
                                 const goal = goals.find(g => g.id === task.goalId);

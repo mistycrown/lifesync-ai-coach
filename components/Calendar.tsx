@@ -7,10 +7,11 @@ interface CalendarProps {
     theme: any;
     variant?: 'full' | 'icon' | 'responsive';
     placement?: 'top' | 'bottom';
+    align?: 'left' | 'right';
     showTime?: boolean;
 }
 
-export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, theme, variant = 'responsive', placement = 'bottom', showTime = false }) => {
+export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, theme, variant = 'responsive', placement = 'bottom', align = 'left', showTime = false }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [time, setTime] = useState('00:00');
@@ -103,7 +104,7 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
             </button>
 
             {isOpen && (
-                <div className={`absolute ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} left-0 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-72 z-50 animate-in fade-in zoom-in-95 duration-200`}>
+                <div className={`absolute ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} ${align === 'right' ? 'right-0' : 'left-0'} bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-72 z-50 animate-in fade-in zoom-in-95 duration-200`}>
                     <div className="flex justify-between items-center mb-4">
                         <button type="button" onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded-full text-slate-500"><ChevronLeft size={18} /></button>
                         <span className="font-bold text-slate-700">{currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月</span>

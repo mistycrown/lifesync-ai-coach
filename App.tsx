@@ -12,6 +12,17 @@ import { StorageService, SUPABASE_TABLE } from './services/storageService';
 import { MobileLayout } from './components/MobileLayout';
 import { THEMES, COACH_STYLES } from './constants/appConstants';
 import { AppProvider, AppContextType } from './contexts/AppContext';
+// 🔧 架构优化：导入 Hooks
+import { useDataPersistence, loadInitialState } from './hooks/useDataPersistence';
+import { useSettings } from './hooks/useSettings';
+import { useReportManagement } from './hooks/useReportManagement';
+import {
+    useTaskManagement,
+    useGoalManagement,
+    useVisionManagement,
+    useSessionManagement,
+    useHabitManagement
+} from './hooks';
 
 // --- Constants imported from constants/appConstants ---
 
@@ -129,35 +140,10 @@ const initialState: AppState = createMockData();
 const coachService = new CoachService();
 
 const App: React.FC = () => {
-    const [state, setState] = useState<AppState>(() => {
-        // Basic persistence with version bump for chat history support
-        const saved = localStorage.getItem('lifesync-state-v5');
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                // Deep merge logic
-                const merged = { ...initialState, ...parsed };
-                merged.coachSettings = { ...initialState.coachSettings, ...parsed.coachSettings };
-                if (parsed.coachSettings?.modelConfig) {
-                    merged.coachSettings.modelConfig = { ...initialState.coachSettings.modelConfig, ...parsed.coachSettings.modelConfig };
-                }
-                if (parsed.storageConfig) {
-                    merged.storageConfig = { ...initialState.storageConfig, ...parsed.storageConfig };
-                }
-                // Ensure chat history integrity
-                if (!merged.habits) merged.habits = initialState.habits;
-                if (!merged.chatSessions || !Array.isArray(merged.chatSessions) || merged.chatSessions.length === 0) {
-                    merged.chatSessions = initialState.chatSessions;
-                    merged.currentChatId = initialState.currentChatId;
-                }
-                return merged;
-            } catch (e) {
-                console.error("Failed to load state", e);
-                return initialState;
-            }
-        }
-        return initialState;
-    });
+    // 🔧 架构优化：使用 loadInitialState 替代原来的本地加载逻辑
+    const [state, setState] = useState<AppState>(() =>
+        loadInitialState(initialState, 'lifesync-state-v5')
+    );
 
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isChatOpen, setIsChatOpen] = useState(true);
@@ -183,32 +169,104 @@ const App: React.FC = () => {
     const [viewingHabitId, setViewingHabitId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Connection Test State
-    const [isTestingConnection, setIsTestingConnection] = useState(false);
-    const [connectionTestResult, setConnectionTestResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+    // 🔧 架构优化：使用 useSettings Hook 管理设置
+    const {
+        localSettings,
+        setLocalSettings,
+        isTestingConnection,
+        connectionTestResult,
+        fileInputRef,
+        testConnection,
+        updateTheme,
+        saveSettings,
+        exportData,
+        importData,
+        handleImportClick
+    } = useSettings({
+        state,
+        setState,
+        coachService,
+        onImportResult: (success, message) => {
+            // 使用 syncMessage 来显示导入结果
+            setSyncMessage({
+                type: success ? 'success' : 'error',
+                text: message
+            });
+        }
+    });
 
-    // Storage Test State
+    // 🔧 架构优化：使用 useReportManagement Hook 管理复盘
+    const {
+        generateReport: generateReportContent,
+        addReport,
+        updateReport,
+        deleteReport
+    } = useReportManagement({ state, setState, coachService });
+
+    // 解决循环依赖：使用 Ref 来引用尚未定义的 handleSendMessage
+    const handleSendMessageRef = React.useRef<(text: string, isAuto?: boolean) => Promise<void>>(async () => { });
+
+    const triggerAIFeedback = (text: string) => {
+        setTimeout(() => {
+            handleSendMessageRef.current(text, true);
+        }, 500);
+    };
+
+    // 🔧 架构优化：使用 useTaskManagement Hook 管理任务
+    const {
+        addTask,
+        updateTask,
+        toggleTask,
+        deleteTask
+    } = useTaskManagement({ state, setState, triggerAIFeedback });
+
+    // 🔧 架构优化：使用 useGoalManagement Hook 管理目标
+    const {
+        addGoal,
+        updateGoal,
+        toggleGoal,
+        deleteGoal
+    } = useGoalManagement({ state, setState, triggerAIFeedback });
+
+    // 🔧 架构优化：使用 useVisionManagement Hook 管理愿景
+    const {
+        addVision,
+        updateVision,
+        deleteVision,
+        toggleVisionArchived
+    } = useVisionManagement({ state, setState });
+
+    // 🔧 架构优化：使用 useSessionManagement Hook 管理专注会话
+    const {
+        startSession,
+        stopSession,
+        addManualSession,
+        updateSession,
+        renameSession,
+        deleteSession
+    } = useSessionManagement({ state, setState, triggerAIFeedback });
+
+    // 🔧 架构优化：使用 useHabitManagement Hook 管理习惯
+    const {
+        addHabit,
+        updateHabit,
+        deleteHabit,
+        toggleCheckIn,
+        handleCheckIn
+    } = useHabitManagement({ state, setState, triggerAIFeedback });
+
+    // Storage Test State (暂时保留，后续会移到 useCloudSync)
     const [isTestingStorage, setIsTestingStorage] = useState(false);
     const [storageTestResult, setStorageTestResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
-    // Sync State
+    // Sync State (暂时保留，后续会移到 useCloudSync)
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
     const [pendingCloudData, setPendingCloudData] = useState<AppState | null>(null);
     const [restoreSource, setRestoreSource] = useState<'cloud' | 'local'>('cloud');
 
-    // Local settings state for the modal form
-    const [localSettings, setLocalSettings] = useState<{ coach: CoachSettings, storage: StorageConfig }>({
-        coach: state.coachSettings,
-        storage: state.storageConfig
-    });
-
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    // Persistence effect
-    useEffect(() => {
-        localStorage.setItem('lifesync-state-v5', JSON.stringify(state));
-    }, [state]);
+    // 🔧 架构优化：使用 useDataPersistence Hook 自动保存数据
+    useDataPersistence(state, 'lifesync-state-v5');
 
     // Init Coach and load chat history
     useEffect(() => {
@@ -235,13 +293,12 @@ const App: React.FC = () => {
                 storage: state.storageConfig
             });
             setSettingsTab('coach');
-            setIsTestingConnection(false);
-            setConnectionTestResult(null);
+            // 🔧 不再直接重置测试状态，由 Hook 内部管理
             setStorageTestResult(null);
             setSyncMessage(null);
             setPendingCloudData(null);
         }
-    }, [isSettingsOpen, state.coachSettings, state.storageConfig]);
+    }, [isSettingsOpen, state.coachSettings, state.storageConfig, setLocalSettings]);
 
     useEffect(() => {
         if (!isResizing) return;
@@ -685,32 +742,14 @@ ${JSON.stringify(result.toolCalls, null, 2)}
         }
     };
 
-    const triggerAIFeedback = (text: string) => {
-        setTimeout(() => {
-            handleSendMessage(text, true);
-        }, 500);
-    };
+    // 更新 Ref，以便 triggerAIFeedback 可以调用最新的 handleSendMessage
+    handleSendMessageRef.current = handleSendMessage;
 
-    const generateReportContent = async (date?: string): Promise<{ title: string, content: string }> => {
-        try {
-            return await coachService.generateDailyReport(state, date);
-        } catch (e) {
-            return { title: "错误", content: "生成日报失败，请稍后重试。" };
-        }
-    };
+    // 🔧 generateReportContent 现在由 useReportManagement Hook 提供
 
-    const testConnection = async () => {
-        setIsTestingConnection(true);
-        setConnectionTestResult(null);
-        try {
-            await coachService.testConnection(localSettings.coach.modelConfig);
-            setConnectionTestResult({ type: 'success', message: "API 连接成功！模型响应正常。" });
-        } catch (error: any) {
-            setConnectionTestResult({ type: 'error', message: "连接失败: " + (error.message || "未知错误") });
-        } finally {
-            setIsTestingConnection(false);
-        }
-    };
+    // 🔧 generateReportContent 现在由 useReportManagement Hook 提供
+
+    // 🔧 testConnection 现在由 useSettings Hook 提供
 
     const testStorageConnection = async () => {
         setIsTestingStorage(true);
@@ -868,394 +907,27 @@ ${JSON.stringify(result.toolCalls, null, 2)}
         setSyncMessage(null);
     };
 
-    const handleImportClick = () => {
-        fileInputRef.current?.click();
-    };
 
-    const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const content = event.target?.result as string;
-                const parsed = JSON.parse(content);
-
-                // Validate minimal structure
-                if (!parsed.tasks || !parsed.coachSettings) {
-                    throw new Error("无效的备份文件：缺少关键数据字段");
-                }
-
-                // Use UI confirmation instead of window.confirm
-                setPendingCloudData(parsed);
-                setRestoreSource('local');
-                setSyncMessage(null);
-
-            } catch (err: any) {
-                setSyncMessage({ type: 'error', text: '导入失败: ' + err.message });
-            }
-        };
-        reader.readAsText(file);
-        // Reset input so same file can be selected again
-        e.target.value = '';
-    };
+    // 🔧 handleImportClick 和 importData 现在由 useSettings Hook 提供
 
     // --- State Modifiers ---
 
-    const addTask = (title: string, goalId?: string, skipFeedback = false) => {
-        setState(prev => ({
-            ...prev,
-            tasks: [{ id: Date.now().toString() + Math.random().toString(36).substr(2, 9), title, completed: false, createdAt: new Date().toISOString(), goalId }, ...prev.tasks]
-        }));
-        if (!skipFeedback) {
-            triggerAIFeedback(`我刚刚手动添加了一个新待办任务：${title}`);
-        }
-    };
+    // 🔧 addTask, updateTask, toggleTask, deleteTask 现在由 useTaskManagement Hook 提供
 
-    const updateTask = (id: string, updates: Partial<Task>) => {
-        setState(prev => ({
-            ...prev,
-            tasks: prev.tasks.map(t => t.id === id ? { ...t, ...updates } : t)
-        }));
-    };
 
-    const addGoal = (title: string, deadline: string, color?: string, visionId?: string) => {
-        setState(prev => ({
-            ...prev,
-            goals: [{ id: Date.now().toString() + Math.random().toString(36).substr(2, 9), title, deadline, completed: false, color, visionId }, ...prev.goals]
-        }));
-    };
+    // 🔧 addGoal, updateGoal, toggleGoal, deleteGoal 现在由 useGoalManagement Hook 提供
 
-    const toggleTask = (id: string) => {
-        const task = state.tasks.find(t => t.id === id);
-        if (!task) return;
-        const isNowCompleted = !task.completed;
+    // 🔧 addGoal, updateGoal, toggleGoal, deleteGoal 现在由 useGoalManagement Hook 提供
 
-        setState(prev => ({
-            ...prev,
-            tasks: prev.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t)
-        }));
+    // 🔧 addVision, updateVision, deleteVision, toggleVisionArchived 现在由 useVisionManagement Hook 提供
 
-        if (isNowCompleted) {
-            triggerAIFeedback(`我刚刚完成了任务：${task.title}`);
-        }
-    };
+    // 🔧 startSession, stopSession, addManualSession, updateSession, renameSession, deleteSession 现在由 useSessionManagement Hook 提供
 
-    const deleteTask = (id: string) => {
-        setState(prev => ({
-            ...prev,
-            tasks: prev.tasks.filter(t => t.id !== id)
-        }));
-    };
+    // 🔧 addHabit, updateHabit, deleteHabit, toggleCheckIn, handleCheckIn 现在由 useHabitManagement Hook 提供
 
-    const toggleGoal = (id: string) => {
-        const goal = state.goals.find(g => g.id === id);
-        if (!goal) return;
-        const isNowCompleted = !goal.completed;
+    // 🔧 addReport, updateReport, deleteReport 现在由 useReportManagement Hook 提供
 
-        setState(prev => ({
-            ...prev,
-            goals: prev.goals.map(g => g.id === id ? { ...g, completed: !g.completed } : g)
-        }));
-
-        if (isNowCompleted) {
-            triggerAIFeedback(`我刚刚达成了长期目标：${goal.title}`);
-        }
-    };
-
-    const deleteGoal = (id: string) => {
-        setState(prev => ({
-            ...prev,
-            goals: prev.goals.filter(g => g.id !== id)
-        }));
-    };
-
-    const updateGoal = (id: string, title: string, deadline: string, color?: string, visionId?: string) => {
-        setState(prev => ({
-            ...prev,
-            goals: prev.goals.map(g => g.id === id ? { ...g, title, deadline, color: color || g.color, visionId } : g)
-        }));
-    };
-
-    const addVision = (title: string) => {
-        setState(prev => ({
-            ...prev,
-            visions: [{ id: Date.now().toString() + Math.random().toString(36).substr(2, 9), title, createdAt: new Date().toISOString(), archived: false }, ...prev.visions]
-        }));
-    };
-
-    const updateVision = (id: string, updates: Partial<Vision>) => {
-        setState(prev => ({
-            ...prev,
-            visions: prev.visions.map(v => v.id === id ? { ...v, ...updates } : v)
-        }));
-    };
-
-    const deleteVision = (id: string) => {
-        setState(prev => ({
-            ...prev,
-            visions: prev.visions.filter(v => v.id !== id),
-            goals: prev.goals.map(g => g.visionId === id ? { ...g, visionId: undefined } : g) // Unlink goals
-        }));
-    };
-
-    const toggleVisionArchived = (id: string) => {
-        setState(prev => ({
-            ...prev,
-            visions: prev.visions.map(v => v.id === id ? { ...v, archived: !v.archived } : v)
-        }));
-    };
-
-    const startSession = (label: string, taskId?: string) => {
-        if (state.activeSessionId) return;
-        const newSession: Session = {
-            id: Date.now().toString(),
-            label,
-            startTime: new Date().toISOString(),
-            endTime: null,
-            durationSeconds: 0,
-            taskId
-        };
-        setState(prev => ({
-            ...prev,
-            activeSessionId: newSession.id,
-            sessions: [newSession, ...prev.sessions]
-        }));
-        triggerAIFeedback(`我刚刚开始了专注工作：${label}，请给我一些鼓励。`);
-    };
-
-    const stopSession = () => {
-        if (!state.activeSessionId) return;
-        const endTime = new Date();
-        let sessionLabel = "";
-
-        const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
-        if (currentSession) {
-            sessionLabel = currentSession.label;
-        }
-
-        setState(prev => {
-            const sessionIndex = prev.sessions.findIndex(s => s.id === prev.activeSessionId);
-            if (sessionIndex === -1) return prev;
-
-            const updatedSessions = [...prev.sessions];
-            const session = updatedSessions[sessionIndex];
-            const startTime = new Date(session.startTime);
-            const duration = (endTime.getTime() - startTime.getTime()) / 1000;
-
-            updatedSessions[sessionIndex] = {
-                ...session,
-                endTime: endTime.toISOString(),
-                durationSeconds: duration
-            };
-
-            return {
-                ...prev,
-                activeSessionId: null,
-                sessions: updatedSessions
-            };
-        });
-
-        if (sessionLabel) {
-            triggerAIFeedback(`我刚刚结束了专注工作：${sessionLabel}`);
-        }
-    };
-
-    const addManualSession = (label: string, startTime: string, durationSeconds: number, taskId?: string, habitId?: string) => {
-        const endTime = new Date(new Date(startTime).getTime() + durationSeconds * 1000).toISOString();
-        const newSession: Session = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            label,
-            startTime,
-            endTime,
-            durationSeconds,
-            taskId,
-            habitId,
-            type: durationSeconds === 0 ? 'checkin' : 'focus'
-        };
-        setState(prev => ({
-            ...prev,
-            sessions: [newSession, ...prev.sessions]
-        }));
-    };
-
-    const handleCheckIn = (type: 'morning' | 'night' | 'custom', label: string) => {
-        // Legacy support or direct call
-        const now = new Date().toISOString();
-        const newSession: Session = {
-            id: Date.now().toString(),
-            label,
-            startTime: now,
-            endTime: now,
-            durationSeconds: 0,
-            type: 'checkin',
-            checkInType: type
-        };
-
-        setState(prev => ({
-            ...prev,
-            sessions: [newSession, ...prev.sessions]
-        }));
-
-        if (type === 'morning') {
-            triggerAIFeedback(`${label}。`);
-        } else if (type === 'night') {
-            triggerAIFeedback(`${label}。`);
-        } else {
-            triggerAIFeedback(`我刚刚打卡了：${label}。`);
-        }
-    };
-
-    const handleAddHabit = (title: string, color?: string) => {
-        const newHabit: Habit = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            title,
-            color,
-            createdAt: new Date().toISOString()
-        };
-        setState(prev => ({ ...prev, habits: [...prev.habits, newHabit] }));
-    };
-
-    const handleDeleteHabit = (id: string) => {
-        setState(prev => ({ ...prev, habits: prev.habits.filter(h => h.id !== id) }));
-    };
-
-    const handleUpdateHabit = (id: string, updates: Partial<Habit>) => {
-        setState(prev => ({
-            ...prev,
-            habits: prev.habits.map(h => h.id === id ? { ...h, ...updates } : h)
-        }));
-    };
-
-    const handleToggleCheckIn = (habitId: string, date?: string) => {
-        const targetDate = date || new Date().toISOString().split('T')[0];
-        // Find if checked in today (or target date)
-        // We match by habitId primarily.
-        const existingSession = state.sessions.find(s =>
-            s.habitId === habitId && s.startTime.startsWith(targetDate)
-        );
-
-        if (existingSession) {
-            // Cancel check-in
-            setState(prev => ({
-                ...prev,
-                sessions: prev.sessions.filter(s => s.id !== existingSession.id)
-            }));
-            // No AI feedback for cancel
-        } else {
-            // Check-in
-            // If date is provided (backfill), use 00:01. Else use current time.
-            let startTime: string;
-            if (date) {
-                startTime = `${date}T00:01:00`;
-            } else {
-                startTime = new Date().toISOString();
-            }
-
-            const habit = state.habits.find(h => h.id === habitId);
-            let label = habit ? habit.title : '打卡';
-
-            // Add emoji for morning/night check-ins
-            if (label.includes('早安') && !label.includes('☀️')) {
-                label = `☀️ ${label}`;
-            } else if (label.includes('晚安') && !label.includes('🌙')) {
-                label = `🌙 ${label}`;
-            }
-
-            const newSession: Session = {
-                id: Date.now().toString(),
-                label,
-                startTime,
-                endTime: startTime,
-                durationSeconds: 0,
-                type: 'checkin',
-                habitId
-            };
-
-            setState(prev => ({
-                ...prev,
-                sessions: [newSession, ...prev.sessions]
-            }));
-
-            // Only trigger AI feedback if it's a real-time check-in (no date param)
-            if (!date) {
-                if (label.includes('早安')) {
-                    triggerAIFeedback(`早安打卡！${label}。请给我今天的早安问候和鼓励。`);
-                } else if (label.includes('晚安')) {
-                    triggerAIFeedback(`晚安打卡！${label}。请给我今天的晚安问候和总结。`);
-                } else {
-                    triggerAIFeedback(`我刚刚打卡了：${label}。`);
-                }
-            }
-        }
-    };
-
-    const updateSession = (id: string, label: string, startTime: string, endTime: string, taskId?: string) => {
-        const start = new Date(startTime);
-        const end = new Date(endTime);
-        const duration = (end.getTime() - start.getTime()) / 1000;
-
-        setState(prev => ({
-            ...prev,
-            sessions: prev.sessions.map(s => s.id === id ? {
-                ...s,
-                label,
-                startTime,
-                endTime,
-                durationSeconds: duration > 0 ? duration : 0,
-                taskId
-            } : s)
-        }));
-    };
-
-    const renameSession = (id: string, newLabel: string) => {
-        setState(prev => ({
-            ...prev,
-            sessions: prev.sessions.map(s => s.id === id ? { ...s, label: newLabel } : s)
-        }));
-    };
-
-    const deleteSession = (id: string) => {
-        setState(prev => ({
-            ...prev,
-            sessions: prev.sessions.filter(s => s.id !== id)
-        }));
-    };
-
-    const addReport = (title: string, content: string, date?: string) => {
-        const newReport: DailyReport = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            date: date || new Date().toISOString(),
-            title,
-            content
-        };
-        setState(prev => ({
-            ...prev,
-            reports: [newReport, ...prev.reports]
-        }));
-    };
-
-    const updateReport = (id: string, content: string) => {
-        setState(prev => ({
-            ...prev,
-            reports: prev.reports.map(r => r.id === id ? { ...r, content } : r)
-        }));
-    };
-
-    const deleteReport = (id: string) => {
-        setState(prev => ({
-            ...prev,
-            reports: prev.reports.filter(r => r.id !== id)
-        }));
-    };
-
-    const updateTheme = (themeKey: string) => {
-        setState(prev => ({
-            ...prev,
-            theme: themeKey
-        }));
-    };
+    // 🔧 updateTheme 现在由 useSettings Hook 提供
 
     // --- Settings Logic ---
 
@@ -1304,39 +976,9 @@ ${JSON.stringify(result.toolCalls, null, 2)}
         }));
     };
 
-    const saveSettings = () => {
-        setState(prev => {
-            const updated = {
-                ...prev,
-                coachSettings: localSettings.coach,
-                storageConfig: localSettings.storage
-            };
-            // Restart chat if persona/model changed
-            const historyToLoad = updated.coachSettings.enableContext ? messages : [];
-            coachService.startChat(updated, historyToLoad);
-            // NOTE: Do NOT clear messages here anymore, keeping conversation continuity
-            return updated;
-        });
-        setIsSettingsOpen(false);
-    };
+    // 🔧 saveSettings 现在由 useSettings Hook 提供
 
-    const exportData = () => {
-        // Use localSettings for current config, but state for data lists
-        const exportState: AppState = {
-            ...state,
-            coachSettings: localSettings.coach,
-            storageConfig: localSettings.storage
-        };
-
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportState));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `lifesync_backup_${new Date().toISOString().split('T')[0]}.json`);
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
-        setSyncMessage({ type: 'success', text: "本地备份导出已开始" });
-    };
+    // 🔧 exportData 现在由 useSettings Hook 提供
 
     const contextValue: AppContextType = {
         state,
@@ -1364,7 +1006,7 @@ ${JSON.stringify(result.toolCalls, null, 2)}
             addGoal, toggleGoal, deleteGoal, updateGoal,
             addVision, updateVision, deleteVision, toggleVisionArchived,
             startSession, stopSession, addSession: addManualSession, updateSession, renameSession, deleteSession, checkIn: handleCheckIn,
-            addHabit: handleAddHabit, updateHabit: handleUpdateHabit, deleteHabit: handleDeleteHabit, toggleCheckIn: handleToggleCheckIn,
+            addHabit, updateHabit, deleteHabit, toggleCheckIn,
             generateReport: generateReportContent, saveReport: addReport, updateReport, deleteReport,
 
             // Chat Actions

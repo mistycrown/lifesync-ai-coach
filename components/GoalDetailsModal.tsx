@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Goal, Task, Session, ThemeConfig } from '../types';
-import { X, Edit2, Trash2, Flag, CheckCircle, Circle, Clock, Calendar, Palette } from 'lucide-react';
+import { Goal, Task, Session, ThemeConfig, Vision } from '../types';
+import { X, Edit2, Trash2, Flag, CheckCircle, Circle, Clock, Calendar, Palette, Target, Activity } from 'lucide-react';
 import { CalendarPopover } from './Calendar';
+import { Select } from './Select';
 
 const MORANDI_COLORS = [
     '#e8d3c0', // Warm Beige
@@ -16,9 +17,10 @@ interface GoalDetailsModalProps {
     goal: Goal;
     tasks: Task[];
     sessions: Session[];
+    visions: Vision[];
     theme: ThemeConfig;
     onClose: () => void;
-    onUpdate: (id: string, title: string, deadline: string, color?: string) => void;
+    onUpdate: (id: string, title: string, deadline: string, color?: string, visionId?: string) => void;
     onDelete: (id: string) => void;
 }
 
@@ -26,6 +28,7 @@ export const GoalDetailsModal: React.FC<GoalDetailsModalProps> = ({
     goal,
     tasks,
     sessions,
+    visions,
     theme,
     onClose,
     onUpdate,
@@ -35,6 +38,7 @@ export const GoalDetailsModal: React.FC<GoalDetailsModalProps> = ({
     const [editTitle, setEditTitle] = useState(goal.title);
     const [editDeadline, setEditDeadline] = useState(goal.deadline);
     const [editColor, setEditColor] = useState(goal.color);
+    const [editVisionId, setEditVisionId] = useState(goal.visionId);
 
     const goalTasks = tasks.filter(t => t.goalId === goal.id);
     const completedTasks = goalTasks.filter(t => t.completed).length;
@@ -45,6 +49,25 @@ export const GoalDetailsModal: React.FC<GoalDetailsModalProps> = ({
         return task && task.goalId === goal.id;
     }).reduce((acc, s) => acc + s.durationSeconds, 0);
 
+    const getHeatmapData = () => {
+        const data = [];
+        const today = new Date();
+        for (let i = 29; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+
+            const daySeconds = sessions.filter(s => {
+                const task = tasks.find(t => t.id === s.taskId);
+                return task && task.goalId === goal.id && s.startTime.startsWith(dateStr);
+            }).reduce((acc, s) => acc + s.durationSeconds, 0);
+
+            data.push({ date: dateStr, seconds: daySeconds });
+        }
+        return data;
+    };
+    const heatmapData = getHeatmapData();
+
     const formatTime = (seconds: number) => {
         const h = Math.floor(seconds / 3600);
         const m = Math.floor((seconds % 3600) / 60);
@@ -53,7 +76,7 @@ export const GoalDetailsModal: React.FC<GoalDetailsModalProps> = ({
 
     const handleSave = () => {
         if (editTitle.trim()) {
-            onUpdate(goal.id, editTitle, editDeadline, editColor);
+            onUpdate(goal.id, editTitle, editDeadline, editColor, editVisionId);
             setIsEditing(false);
         }
     };
@@ -77,6 +100,18 @@ export const GoalDetailsModal: React.FC<GoalDetailsModalProps> = ({
                                     />
                                     <div className="flex items-center gap-2">
                                         <CalendarPopover value={editDeadline} onChange={setEditDeadline} theme={theme} variant="full" />
+                                    </div>
+                                    <div className="mt-2">
+                                        <Select
+                                            value={visions.find(v => v.id === editVisionId)?.title || ''}
+                                            onChange={(title) => {
+                                                const vision = visions.find(v => v.title === title);
+                                                if (vision) setEditVisionId(vision.id);
+                                            }}
+                                            options={visions.map(v => ({ label: v.title, value: v.id }))}
+                                            theme={theme}
+                                            placeholder="关联愿景（可选）"
+                                        />
                                     </div>
                                     <div className="flex gap-1 flex-wrap">
                                         {MORANDI_COLORS.map(c => (
@@ -128,6 +163,12 @@ export const GoalDetailsModal: React.FC<GoalDetailsModalProps> = ({
                                         <Calendar size={12} />
                                         <span>截止日期: {new Date(goal.deadline).toLocaleDateString()}</span>
                                     </div>
+                                    {goal.visionId && (
+                                        <div className="flex items-center gap-2 text-xs text-indigo-500 mt-1">
+                                            <Target size={12} />
+                                            <span>愿景: {visions.find(v => v.id === goal.visionId)?.title || '未知愿景'}</span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -138,8 +179,29 @@ export const GoalDetailsModal: React.FC<GoalDetailsModalProps> = ({
                 </div>
 
                 <div className="p-6 space-y-6">
-                    {/* Progress Bar */}
+                    {/* Heatmap */}
+                    <div>
+                        <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                            <Activity size={16} className={`text-${theme.primary}-500`} /> 近30天投入
+                        </h4>
+                        <div className="flex gap-1 h-12 items-end">
+                            {heatmapData.map((d) => {
+                                let bgClass = 'bg-slate-100';
+                                if (d.seconds > 0) bgClass = `bg-${theme.primary}-200`;
+                                if (d.seconds > 1800) bgClass = `bg-${theme.primary}-400`;
+                                if (d.seconds > 3600) bgClass = `bg-${theme.primary}-600`;
 
+                                return (
+                                    <div
+                                        key={d.date}
+                                        className={`flex-1 rounded-sm transition-all hover:opacity-80 relative group ${bgClass}`}
+                                        style={{ height: d.seconds > 0 ? `${Math.max(20, Math.min(100, (d.seconds / 7200) * 100))}%` : '4px' }}
+                                        title={`${d.date}: ${Math.round(d.seconds / 60)}分钟`}
+                                    />
+                                );
+                            })}
+                        </div>
+                    </div>
 
                     <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
                         <div className={`p-3 bg-${theme.primary}-100 text-${theme.primary}-600 rounded-full`}>

@@ -118,6 +118,7 @@ export const MobileLayout: React.FC = () => {
                             sessions={state.sessions}
                             tasks={state.tasks}
                             goals={state.goals}
+                            habits={state.habits}
                             reports={state.reports}
                             theme={theme}
                             onAddSession={actions.addSession}
@@ -244,6 +245,7 @@ export const MobileLayout: React.FC = () => {
                     theme={theme}
                     tasks={state.tasks}
                     sessions={state.sessions}
+                    visions={state.visions}
                 />
             )}
 

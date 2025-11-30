@@ -3,6 +3,7 @@ import { Flag, Target, CheckCircle, Circle, Calendar, Clock, Trash2, Plus, Palet
 import { Goal, Vision, Task, Session, ThemeConfig } from '../../types';
 import { CalendarPopover } from '../Calendar';
 import { VisionList } from '../VisionList';
+import { Select } from '../Select';
 
 const MORANDI_COLORS = [
     '#e8d3c0', // Warm Beige
@@ -52,6 +53,7 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
     const [newGoalTitle, setNewGoalTitle] = useState('');
     const [newGoalDate, setNewGoalDate] = useState(new Date().toISOString().split('T')[0]);
     const [newGoalColor, setNewGoalColor] = useState<string | undefined>(undefined);
+    const [newGoalVisionId, setNewGoalVisionId] = useState<string | undefined>(undefined);
     const [showColorPicker, setShowColorPicker] = useState(false);
 
     const sortedGoals = [...goals].sort((a, b) => {
@@ -64,15 +66,16 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
     const handleAddGoalSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (newGoalTitle.trim() && newGoalDate) {
-            onAddGoal(newGoalTitle, newGoalDate, newGoalColor);
+            onAddGoal(newGoalTitle, newGoalDate, newGoalColor, newGoalVisionId);
             setNewGoalTitle('');
             setNewGoalDate(new Date().toISOString().split('T')[0]);
             setNewGoalColor(undefined);
+            setNewGoalVisionId(undefined);
         }
     };
 
     return (
-        <div className="bg-white rounded-3xl p-6 shadow-float border border-white/50 flex flex-col h-[400px]">
+        <div className="bg-white rounded-3xl p-6 shadow-float border border-white/50 flex flex-col h-[500px]">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold font-serif text-slate-800 flex items-center gap-2">
                     {goalsViewMode === 'goals' ? <Flag className={`text-${theme.primary}-500`} size={20} /> : <Target className={`text-${theme.primary}-500`} size={20} />}
@@ -126,6 +129,12 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                                         <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
                                             <Calendar size={8} /> {new Date(goal.deadline).toLocaleDateString()}
                                         </span>
+                                        {goal.visionId && (
+                                            <span className="text-[10px] text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 flex items-center gap-1">
+                                                <Target size={8} />
+                                                {visions.find(v => v.id === goal.visionId)?.title || '未知愿景'}
+                                            </span>
+                                        )}
                                         <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
                                             <Clock size={8} />
                                             {Math.floor(
@@ -144,65 +153,79 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                             </div>
                         ))}
                     </div>
-                    <form onSubmit={handleAddGoalSubmit} className="mt-4 flex items-center gap-2">
-                        <input
-                            type="text"
-                            value={newGoalTitle}
-                            onChange={(e) => setNewGoalTitle(e.target.value)}
-                            placeholder="目标..."
-                            className={`flex-1 min-w-[80px] bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
-                        />
-                        <div className="shrink-0">
-                            <CalendarPopover value={newGoalDate} onChange={setNewGoalDate} theme={theme} placement="top" />
+                    <form onSubmit={handleAddGoalSubmit} className="mt-4 flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="text"
+                                value={newGoalTitle}
+                                onChange={(e) => setNewGoalTitle(e.target.value)}
+                                placeholder="目标..."
+                                className={`flex-1 min-w-[80px] bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
+                            />
+                            <div className="shrink-0">
+                                <CalendarPopover value={newGoalDate} onChange={setNewGoalDate} theme={theme} placement="top" align="right" />
+                            </div>
                         </div>
-
-                        <div className="relative shrink-0">
-                            <button type="button" onClick={() => setShowColorPicker(!showColorPicker)} className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors" style={{ backgroundColor: newGoalColor }}>
-                                {!newGoalColor && <Palette size={16} className="text-slate-400" />}
-                            </button>
-                            {showColorPicker && (
-                                <>
-                                    <div className="fixed inset-0 z-0" onClick={() => setShowColorPicker(false)} />
-                                    <div className="absolute bottom-full right-0 mb-2 p-3 bg-white rounded-xl shadow-xl border border-slate-100 z-10 w-40 animate-in fade-in zoom-in-95 duration-200">
-                                        <div className="grid grid-cols-4 gap-1 mb-2">
-                                            {MORANDI_COLORS.map(c => (
-                                                <button
-                                                    key={c}
-                                                    type="button"
-                                                    onClick={() => { setNewGoalColor(c); setShowColorPicker(false); }}
-                                                    style={{ backgroundColor: c }}
-                                                    className="w-7 h-7 rounded-full hover:scale-110 transition-transform"
-                                                />
-                                            ))}
-                                        </div>
-                                        <div className="border-t border-slate-100 pt-2 mt-1">
-                                            <label className="text-[10px] text-slate-500 mb-1 block">自定义颜色</label>
-                                            <input
-                                                type="text"
-                                                placeholder="#RRGGBB"
-                                                className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        const value = e.currentTarget.value.trim();
-                                                        if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
-                                                            setNewGoalColor(value);
-                                                            setShowColorPicker(false);
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                                <Select
+                                    value={visions.find(v => v.id === newGoalVisionId)?.title || ''}
+                                    onChange={(title) => {
+                                        const vision = visions.find(v => v.title === title);
+                                        if (vision) setNewGoalVisionId(vision.id);
+                                    }}
+                                    options={visions.map(v => ({ label: v.title, value: v.id }))}
+                                    theme={theme}
+                                    placeholder="关联愿景（可选）"
+                                />
+                            </div>
+                            <div className="relative shrink-0">
+                                <button type="button" onClick={() => setShowColorPicker(!showColorPicker)} className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors" style={{ backgroundColor: newGoalColor }}>
+                                    {!newGoalColor && <Palette size={16} className="text-slate-400" />}
+                                </button>
+                                {showColorPicker && (
+                                    <>
+                                        <div className="fixed inset-0 z-0" onClick={() => setShowColorPicker(false)} />
+                                        <div className="absolute bottom-full right-0 mb-2 p-3 bg-white rounded-xl shadow-xl border border-slate-100 z-10 w-40 animate-in fade-in zoom-in-95 duration-200">
+                                            <div className="grid grid-cols-4 gap-1 mb-2">
+                                                {MORANDI_COLORS.map(c => (
+                                                    <button
+                                                        key={c}
+                                                        type="button"
+                                                        onClick={() => { setNewGoalColor(c); setShowColorPicker(false); }}
+                                                        style={{ backgroundColor: c }}
+                                                        className="w-7 h-7 rounded-full hover:scale-110 transition-transform"
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div className="border-t border-slate-100 pt-2 mt-1">
+                                                <label className="text-[10px] text-slate-500 mb-1 block">自定义颜色</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="#RRGGBB"
+                                                    className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            const value = e.currentTarget.value.trim();
+                                                            if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                                                                setNewGoalColor(value);
+                                                                setShowColorPicker(false);
+                                                            }
                                                         }
-                                                    }
-                                                }}
-                                                onClick={(e) => e.stopPropagation()}
-                                            />
-                                            <p className="text-[9px] text-slate-400 mt-0.5">回车确认</p>
+                                                    }}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                                <p className="text-[9px] text-slate-400 mt-0.5">回车确认</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                </>
-                            )}
+                                    </>
+                                )}
+                            </div>
+                            <button type="submit" className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors shrink-0">
+                                <Plus size={20} />
+                            </button>
                         </div>
-
-                        <button type="submit" className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors shrink-0">
-                            <Plus size={20} />
-                        </button>
                     </form>
                 </>
             ) : (

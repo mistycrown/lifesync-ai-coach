@@ -28,7 +28,7 @@ export const Dashboard: React.FC = () => {
   const activeSession = sessions.find(s => s.id === activeSessionId);
 
   return (
-    <div className="h-full overflow-y-auto p-8 custom-scrollbar">
+    <div className="h-full overflow-y-auto p-4 md:p-8 custom-scrollbar">
       <div className="max-w-6xl mx-auto space-y-8 pb-20">
 
         {/* Section 1: Focus Timer */}
@@ -83,6 +83,7 @@ export const Dashboard: React.FC = () => {
             sessions={sessions}
             tasks={tasks}
             goals={goals}
+            habits={habits}
             reports={reports}
             theme={theme}
             onAddSession={actions.addSession}
@@ -166,6 +167,7 @@ export const Dashboard: React.FC = () => {
           theme={theme}
           tasks={tasks}
           sessions={sessions}
+          visions={visions}
         />
       )}
 

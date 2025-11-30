@@ -64,7 +64,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-3xl p-6 shadow-float border border-white/50 flex flex-col h-[400px]">
+        <div className="bg-white rounded-3xl p-6 shadow-float border border-white/50 flex flex-col h-[500px]">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold font-serif text-slate-800 flex items-center gap-2">
                     {taskViewMode === 'tasks' ? <ListTodo className={`text-${theme.primary}-500`} size={20} /> : <CheckCircle className={`text-${theme.primary}-500`} size={20} />}
