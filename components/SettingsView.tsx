@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson } from 'lucide-react';
+import { Settings, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson, Bug } from 'lucide-react';
 import { Select } from './Select';
 import { AppState, CoachSettings, StorageConfig, ThemeConfig } from '../types';
 import { THEMES, COACH_STYLES } from '../constants/appConstants';
@@ -301,6 +301,53 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 </div>
                             </div>
                         </div>
+
+                        {/* Advanced Settings */}
+                        <div className="space-y-4 border-t border-slate-100 pt-6">
+                            <h4 className="font-medium text-slate-800 flex items-center gap-2">
+                                <Bug className={`w-5 h-5 text-${currentTheme.primary}-600`} /> 高级设置
+                            </h4>
+
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <label className="font-medium text-slate-700">调试模式 (Debug Mode)</label>
+                                        <p className="text-xs text-slate-500">在对话中显示完整的 Prompt 和系统指令，用于开发调试。</p>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={localSettings.coach.debugMode || false}
+                                            onChange={(e) => setLocalSettings(prev => ({
+                                                ...prev,
+                                                coach: { ...prev.coach, debugMode: e.target.checked }
+                                            }))}
+                                            className="sr-only peer"
+                                        />
+                                        <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-${currentTheme.primary}-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-${currentTheme.primary}-600`}></div>
+                                    </label>
+                                </div>
+
+                                <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+                                    <div>
+                                        <label className="font-medium text-slate-700">启用上下文记忆 (Context Memory)</label>
+                                        <p className="text-xs text-slate-500">允许 AI 记住之前的对话历史（可能会增加 Token 消耗）。</p>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={localSettings.coach.enableContext !== false} // Default to true if undefined
+                                            onChange={(e) => setLocalSettings(prev => ({
+                                                ...prev,
+                                                coach: { ...prev.coach, enableContext: e.target.checked }
+                                            }))}
+                                            className="sr-only peer"
+                                        />
+                                        <div className={`w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-${currentTheme.primary}-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-${currentTheme.primary}-600`}></div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
 
@@ -553,32 +600,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             {/* Footer Buttons */}
-            <div className="p-6 border-t border-slate-100 bg-white shrink-0">
-                {settingsTab === 'coach' || settingsTab === 'data' ? (
-                    <div className="flex gap-3">
-                        <button
-                            onClick={onCancel}
-                            className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-                        >
-                            取消
-                        </button>
-                        <button
-                            onClick={onSave}
-                            className={`flex-1 px-4 py-2 bg-${currentTheme.primary}-600 text-white rounded-lg hover:bg-${currentTheme.primary}-700 shadow-lg hover:shadow-xl transition-all flex justify-center items-center gap-2`}
-                        >
-                            <Save size={18} /> 保存设置
-                        </button>
-                    </div>
-                ) : (
-                    <div className="flex justify-end">
-                        <button
-                            onClick={onCancel}
-                            className="px-6 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-                        >
-                            关闭
-                        </button>
-                    </div>
-                )}
+            <div className="p-4 border-t border-slate-100 bg-white shrink-0">
+                <button
+                    onClick={onSave}
+                    className={`w-full px-4 py-2 bg-${currentTheme.primary}-600 text-white rounded-lg hover:bg-${currentTheme.primary}-700 shadow-sm hover:shadow-md transition-all flex justify-center items-center gap-2 text-sm font-medium`}
+                >
+                    <Save size={16} /> 保存设置
+                </button>
             </div>
         </div>
     );

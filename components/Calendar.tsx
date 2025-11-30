@@ -59,8 +59,8 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
         switch (variant) {
             case 'full': return 'whitespace-nowrap';
             case 'icon': return 'hidden';
-            case 'responsive': return 'hidden xl:inline whitespace-nowrap';
-            default: return 'hidden xl:inline whitespace-nowrap';
+            case 'responsive': return 'hidden sm:inline whitespace-nowrap';
+            default: return 'hidden sm:inline whitespace-nowrap';
         }
     };
 
@@ -77,7 +77,7 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
             </button>
 
             {isOpen && (
-                <div className={`absolute ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} right-0 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-72 z-50 animate-in fade-in zoom-in-95 duration-200`}>
+                <div className={`absolute ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} left-0 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 w-72 z-50 animate-in fade-in zoom-in-95 duration-200`}>
                     <div className="flex justify-between items-center mb-4">
                         <button type="button" onClick={handlePrevMonth} className="p-1 hover:bg-slate-100 rounded-full text-slate-500"><ChevronLeft size={18} /></button>
                         <span className="font-bold text-slate-700">{currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月</span>

@@ -165,12 +165,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             )
           }
 
-          // Debug Message Special Handling
-          if (msg.text.includes('🐛 **Debug Mode')) {
+          // Debug Messages (special handling for messages with IDs containing '_debug')
+          if (msg.id.includes('_debug')) {
             return (
               <div key={msg.id} className="w-full px-1 my-4">
-                <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs shadow-sm overflow-hidden">
-                  <div className="markdown-body [&_pre]:whitespace-pre-wrap [&_pre]:break-all [&_code]:whitespace-pre-wrap [&_code]:break-all text-slate-600">
+                <div className="w-full bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-5 text-xs shadow-lg overflow-hidden">
+                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-amber-200">
+                    <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold">
+                      🐛
+                    </div>
+                    <span className="text-amber-900 font-bold text-sm">调试信息</span>
+                    <span className="text-amber-600 text-[10px] ml-auto">
+                      {msg.timestamp.toLocaleTimeString()}
+                    </span>
+                  </div>
+                  <div className="markdown-body debug-markdown [&_pre]:whitespace-pre-wrap [&_pre]:break-all [&_code]:whitespace-pre-wrap [&_code]:break-all [&_pre]:bg-slate-950 [&_pre]:text-white [&_pre_code]:text-white [&_pre_code]:bg-transparent [&_code]:bg-transparent [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_h2]:text-amber-900 [&_h2]:text-sm [&_h2]:font-bold [&_h2]:mb-2 [&_h2]:mt-3 [&_h3]:text-amber-800 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:mt-2 text-slate-700">
                     <ReactMarkdown>{msg.text}</ReactMarkdown>
                   </div>
                 </div>

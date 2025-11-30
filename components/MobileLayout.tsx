@@ -134,7 +134,7 @@ export const MobileLayout: React.FC = () => {
                 );
             case 'settings':
                 return (
-                    <div className="h-full pb-20">
+                    <div className="h-full pb-16">
                         <SettingsView
                             state={state}
                             localSettings={localSettings}

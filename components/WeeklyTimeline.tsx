@@ -55,14 +55,29 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
     }, [sessions, weekDates]);
 
     const getSessionColor = (session: Session) => {
+        if (session.label.includes('早安')) {
+            return {
+                bg: 'bg-orange-100',
+                border: 'border-orange-200',
+                text: 'text-orange-800'
+            };
+        }
+        if (session.label.includes('晚安')) {
+            return {
+                bg: 'bg-blue-100',
+                border: 'border-blue-200',
+                text: 'text-blue-800'
+            };
+        }
+
         const task = tasks.find(t => t.id === session.taskId);
         if (task && task.goalId) {
             const goal = goals.find(g => g.id === task.goalId);
             if (goal && goal.color) {
                 return {
-                    bg: `bg-${goal.color}-100`,
-                    border: `border-${goal.color}-200`,
-                    text: `text-${goal.color}-800`
+                    bg: `bg-[${goal.color}]/10`,
+                    border: `border-[${goal.color}]/20`,
+                    text: `text-[${goal.color}]`
                 };
             }
         }
@@ -261,12 +276,20 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
                                     const style = getSessionStyle(session);
                                     const task = tasks.find(t => t.id === session.taskId);
                                     const colors = getSessionColor(session);
+                                    const isCustomColor = colors.bg.startsWith('bg-[') || colors.bg.startsWith('bg-orange') || colors.bg.startsWith('bg-blue'); // Simple check, but better to use style object for custom colors
+
+                                    const customStyle = {
+                                        ...style,
+                                        ...(colors.bg.startsWith('bg-[') ? { backgroundColor: `${goals.find(g => g.id === tasks.find(t => t.id === session.taskId)?.goalId)?.color}1A` } : {}),
+                                        ...(colors.border.startsWith('border-[') ? { borderColor: `${goals.find(g => g.id === tasks.find(t => t.id === session.taskId)?.goalId)?.color}33` } : {}),
+                                        ...(colors.text.startsWith('text-[') ? { color: goals.find(g => g.id === tasks.find(t => t.id === session.taskId)?.goalId)?.color } : {})
+                                    };
 
                                     return (
                                         <div
                                             key={session.id}
-                                            className={`absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] overflow-hidden border shadow-sm hover:z-10 hover:shadow-md transition-all cursor-pointer group ${colors.bg} ${colors.border} ${colors.text}`}
-                                            style={style}
+                                            className={`absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] overflow-hidden border shadow-sm hover:z-10 hover:shadow-md transition-all cursor-pointer group ${!colors.bg.startsWith('bg-[') ? `${colors.bg} ${colors.border} ${colors.text}` : ''}`}
+                                            style={customStyle}
                                             title={`${session.label} (${Math.floor(session.durationSeconds / 60)}m)`}
                                             onClick={(e) => {
                                                 e.stopPropagation();

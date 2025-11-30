@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Settings, BarChart3, MessageSquare, X, Sparkles, FileText, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson, Search, Bug } from 'lucide-react';
+import { Settings, BarChart3, MessageSquare, X, Sparkles, FileText, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson, Search, Bug, PanelRightClose } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
 import { Dashboard } from './components/Dashboard';
 import { SettingsView } from './components/SettingsView';
@@ -408,45 +408,66 @@ const App: React.FC = () => {
             }
         }
 
-        // Debug Mode: Show Prompt
+        // Debug Mode: Show System Information BEFORE sending message
         if (state.coachSettings.debugMode) {
             const systemPrompt = coachService.getSystemInstruction(state);
-            const debugMsg: ChatMessage = {
-                id: Date.now().toString() + '_debug',
+            const historyForDebug = state.coachSettings.enableContext ? messages.filter(msg => !msg.id.includes('_debug')) : [];
+
+            const debugInfoMsg: ChatMessage = {
+                id: Date.now().toString() + '_debug_info',
                 role: 'model',
-                text: `🐛 **Debug Mode: System Prompt**\n\n\`\`\`text\n${systemPrompt}\n\`\`\``,
+                text: `## 🐛 调试信息 - ${new Date().toLocaleTimeString()}
+
+### 📋 系统提示词 (System Prompt)
+\`\`\`
+${systemPrompt}
+\`\`\`
+
+### 💬 上下文状态
+- **上下文记忆**: ${state.coachSettings.enableContext ? '✅ 已启用' : '❌ 已禁用'}
+- **历史消息数**: ${historyForDebug.length} 条
+
+${state.coachSettings.enableContext ? `
+### 📜 对话历史 (发送给 AI)
+\`\`\`json
+${JSON.stringify(historyForDebug.map(m => ({
+                    role: m.role,
+                    text: m.text.substring(0, 100) + (m.text.length > 100 ? '...' : '')
+                })), null, 2)}
+\`\`\`
+` : ''}
+---`,
                 timestamp: new Date(),
             };
 
-            // Log History/Context (Filtered - What AI actually sees)
-            // If context is disabled, we show an empty array or a message indicating it's disabled
-            const historyForDebug = state.coachSettings.enableContext ? messages : [];
-            const cleanMessages = historyForDebug.filter(msg => !msg.id.includes('_debug'));
-
-            const debugContextMsg: ChatMessage = {
-                id: Date.now().toString() + '_debug_context',
-                role: 'model',
-                text: `🐛 **Debug Mode: Chat Context (Sent to AI)**\n\n\`\`\`json\n${JSON.stringify(cleanMessages, null, 2)}\n\`\`\``,
-                timestamp: new Date(),
-            };
-
-            currentMsgs = [...currentMsgs, debugMsg, debugContextMsg];
+            currentMsgs = [...currentMsgs, debugInfoMsg];
             setMessages(currentMsgs);
             updateChatSession(chatId, currentMsgs);
         }
 
         try {
             // 1. Send message to Gemini/LLM
-            // Only pass history if context is enabled
             const historyToSend = state.coachSettings.enableContext ? messages : [];
             let result = await coachService.sendMessage(text, state, historyToSend);
 
             // DEBUG: Log Initial AI Response
             if (state.coachSettings.debugMode) {
+                const hasToolCalls = result.toolCalls && result.toolCalls.length > 0;
                 const debugMsg: ChatMessage = {
-                    id: Date.now().toString() + '_debug_response_0',
+                    id: Date.now().toString() + '_debug_response_initial',
                     role: 'model',
-                    text: `🐛 **Debug Mode: AI Response (Initial)**\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``,
+                    text: `## 🤖 AI 响应 #1
+
+### 📝 返回文本
+${result.response ? `\`\`\`\n${result.response}\n\`\`\`` : '_无文本内容_'}
+
+### ⚙️ 功能调用
+${hasToolCalls ? `
+\`\`\`json
+${JSON.stringify(result.toolCalls, null, 2)}
+\`\`\`
+` : '_无功能调用_'}
+---`,
                     timestamp: new Date(),
                 };
                 currentMsgs = [...currentMsgs, debugMsg];
@@ -568,12 +589,18 @@ const App: React.FC = () => {
                 setMessages(currentMsgs);
                 updateChatSession(chatId, currentMsgs);
 
-                // DEBUG: Log Tool Outputs
+                // DEBUG: Log Tool Execution Results
                 if (state.coachSettings.debugMode) {
                     const debugOutputMsg: ChatMessage = {
-                        id: Date.now().toString() + '_debug_out_' + loops,
+                        id: Date.now().toString() + '_debug_tool_output',
                         role: 'model',
-                        text: `🐛 **Debug Mode: Tool Outputs (Turn ${loops})**\n\n\`\`\`json\n${JSON.stringify(toolResponses, null, 2)}\n\`\`\``,
+                        text: `## ⚙️ 工具执行结果 (回合 ${loops})
+
+### 📤 返回给 AI 的数据
+\`\`\`json
+${JSON.stringify(toolResponses, null, 2)}
+\`\`\`
+---`,
                         timestamp: new Date(),
                     };
                     currentMsgs = [...currentMsgs, debugOutputMsg];
@@ -586,10 +613,22 @@ const App: React.FC = () => {
 
                 // DEBUG: Log Subsequent AI Response
                 if (state.coachSettings.debugMode) {
+                    const hasMoreToolCalls = result.toolCalls && result.toolCalls.length > 0;
                     const debugNextMsg: ChatMessage = {
                         id: Date.now().toString() + '_debug_response_' + loops,
                         role: 'model',
-                        text: `🐛 **Debug Mode: AI Response (Turn ${loops})**\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``,
+                        text: `## 🤖 AI 响应 #${loops + 1}
+
+### 📝 返回文本
+${result.response ? `\`\`\`\n${result.response}\n\`\`\`` : '_无文本内容_'}
+
+### ⚙️ 功能调用
+${hasMoreToolCalls ? `
+\`\`\`json
+${JSON.stringify(result.toolCalls, null, 2)}
+\`\`\`
+` : '_无更多功能调用_'}
+---`,
                         timestamp: new Date(),
                     };
                     currentMsgs = [...currentMsgs, debugNextMsg];
@@ -597,6 +636,7 @@ const App: React.FC = () => {
                     updateChatSession(chatId, currentMsgs);
                 }
             }
+
 
             // 4. Add Model Response
             const newBotMsg: ChatMessage = {
@@ -1392,7 +1432,16 @@ const App: React.FC = () => {
                                 <Settings size={20} />
                                 <span className="hidden sm:inline text-sm font-medium">设置</span>
                             </button>
-                            {!isChatOpen && (
+                            {isChatOpen ? (
+                                <button
+                                    onClick={() => setIsChatOpen(false)}
+                                    className={`flex items-center gap-2 text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-100 transition-colors text-sm font-medium`}
+                                    title="关闭聊天"
+                                >
+                                    <PanelRightClose size={20} />
+                                    <span className="hidden sm:inline">关闭聊天</span>
+                                </button>
+                            ) : (
                                 <button
                                     onClick={() => setIsChatOpen(true)}
                                     className={`flex items-center gap-2 bg-${currentTheme.primary}-600 text-white px-4 py-2 rounded-lg hover:bg-${currentTheme.primary}-700 transition-colors text-sm font-medium shadow-sm`}
@@ -1472,9 +1521,17 @@ const App: React.FC = () => {
                                 <h2 className="text-xl font-bold font-serif text-slate-800 flex items-center gap-2">
                                     <Settings size={24} className={`text-${currentTheme.primary}-600`} /> 设置
                                 </h2>
-                                <button onClick={() => setIsSettingsOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                                    <X size={24} className="text-slate-500" />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={saveSettings}
+                                        className={`px-4 py-2 bg-${currentTheme.primary}-600 text-white rounded-lg hover:bg-${currentTheme.primary}-700 transition-colors text-sm font-medium flex items-center gap-2 shadow-sm`}
+                                    >
+                                        <Save size={16} /> 保存
+                                    </button>
+                                    <button onClick={() => setIsSettingsOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors" title="关闭">
+                                        <X size={24} className="text-slate-500" />
+                                    </button>
+                                </div>
                             </div>
 
                             <SettingsView

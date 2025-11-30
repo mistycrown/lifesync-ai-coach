@@ -60,8 +60,8 @@ export const GoalDetailsModal: React.FC<GoalDetailsModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50" style={goal.color ? { backgroundColor: `${goal.color}11` } : {}}>
+            <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-3xl" style={goal.color ? { backgroundColor: `${goal.color}11` } : {}}>
                     <div className="flex items-center gap-3 flex-1">
                         <div className={`p-2 rounded-xl bg-white shadow-sm text-${theme.primary}-600`} style={goal.color ? { color: goal.color } : {}}>
                             <Flag size={24} />
@@ -76,7 +76,7 @@ export const GoalDetailsModal: React.FC<GoalDetailsModalProps> = ({
                                         autoFocus
                                     />
                                     <div className="flex items-center gap-2">
-                                        <CalendarPopover value={editDeadline} onChange={setEditDeadline} theme={theme} />
+                                        <CalendarPopover value={editDeadline} onChange={setEditDeadline} theme={theme} variant="full" />
                                     </div>
                                     <div className="flex gap-1 flex-wrap">
                                         {MORANDI_COLORS.map(c => (
@@ -93,6 +93,23 @@ export const GoalDetailsModal: React.FC<GoalDetailsModalProps> = ({
                                         >
                                             X
                                         </button>
+                                    </div>
+                                    <div className="mt-2">
+                                        <input
+                                            type="text"
+                                            placeholder="#RRGGBB 自定义颜色"
+                                            className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-500"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const value = e.currentTarget.value.trim();
+                                                    if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                                                        setEditColor(value);
+                                                        e.currentTarget.value = '';
+                                                    }
+                                                }
+                                            }}
+                                        />
                                     </div>
                                     <div className="flex gap-2">
                                         <button onClick={handleSave} className={`px-2 py-1 bg-${theme.primary}-600 text-white text-xs rounded`}>保存</button>
@@ -122,21 +139,7 @@ export const GoalDetailsModal: React.FC<GoalDetailsModalProps> = ({
 
                 <div className="p-6 space-y-6">
                     {/* Progress Bar */}
-                    <div>
-                        <div className="flex justify-between text-sm mb-1">
-                            <span className="text-slate-500">完成进度</span>
-                            <span className="font-bold text-slate-700">{progress}%</span>
-                        </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                                className={`h-full bg-${theme.primary}-500 transition-all duration-500`}
-                                style={{ width: `${progress}%`, backgroundColor: goal.color || undefined }}
-                            />
-                        </div>
-                        <div className="text-xs text-slate-400 mt-1 text-right">
-                            {completedTasks} / {goalTasks.length} 个任务
-                        </div>
-                    </div>
+
 
                     <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
                         <div className={`p-3 bg-${theme.primary}-100 text-${theme.primary}-600 rounded-full`}>

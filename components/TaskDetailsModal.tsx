@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Task, Goal, Session, ThemeConfig } from '../types';
 import { X, Edit2, CheckCircle, Circle, Trash2, Clock, Flag, Calendar, History as HistoryIcon } from 'lucide-react';
+import { Select } from './Select';
 
 interface TaskDetailsModalProps {
     task: Task;
@@ -40,6 +41,13 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
         }
     };
 
+    const goalOptions = [
+        { label: '无关联目标', value: '' },
+        ...goals.map(g => ({ label: g.title, value: g.id }))
+    ];
+
+    const currentGoalLabel = editGoalId ? goals.find(g => g.id === editGoalId)?.title : '无关联目标';
+
     return (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
@@ -50,23 +58,27 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                         </button>
                         <div className="flex-1">
                             {isEditing ? (
-                                <div className="space-y-2">
+                                <div className="space-y-3">
                                     <input
                                         className="w-full text-lg font-bold text-slate-800 border-b border-slate-300 focus:border-indigo-500 outline-none bg-transparent"
                                         value={editTitle}
                                         onChange={e => setEditTitle(e.target.value)}
                                         autoFocus
                                     />
-                                    <select
-                                        className="w-full text-sm border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-500 bg-white"
-                                        value={editGoalId}
-                                        onChange={e => setEditGoalId(e.target.value)}
-                                    >
-                                        <option value="">无关联目标</option>
-                                        {goals.map(g => (
-                                            <option key={g.id} value={g.id}>{g.title}</option>
-                                        ))}
-                                    </select>
+                                    <Select
+                                        value={currentGoalLabel || '无关联目标'}
+                                        onChange={(label) => {
+                                            if (label === '无关联目标') {
+                                                setEditGoalId('');
+                                            } else {
+                                                const goal = goals.find(g => g.title === label);
+                                                if (goal) setEditGoalId(goal.id);
+                                            }
+                                        }}
+                                        options={goalOptions}
+                                        theme={theme}
+                                        className="w-full"
+                                    />
                                     <div className="flex gap-2">
                                         <button onClick={handleSave} className={`px-2 py-1 bg-${theme.primary}-600 text-white text-xs rounded`}>保存</button>
                                         <button onClick={() => setIsEditing(false)} className="px-2 py-1 bg-slate-200 text-slate-600 text-xs rounded">取消</button>
@@ -81,9 +93,9 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                         </button>
                                     </div>
                                     {task.goalId && (
-                                        <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
+                                        <div className={`flex items-center gap-1 text-xs mt-1 font-medium text-${goals.find(g => g.id === task.goalId)?.color || theme.primary}-600`}>
                                             <Flag size={12} />
-                                            <span>{goals.find(g => g.id === task.goalId)?.title || '未知目标'}</span>
+                                            <span>{goals.find(g => g.id === task.goalId)?.title}</span>
                                         </div>
                                     )}
                                 </div>

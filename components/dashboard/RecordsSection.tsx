@@ -105,58 +105,64 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
 
     return (
         <div className="bg-white rounded-3xl p-6 shadow-float border border-white/50 col-span-1 lg:col-span-2">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                <h3 className="text-lg font-bold font-serif text-slate-800 flex items-center gap-2"><History className={`text-${theme.primary}-500`} size={20} /> 活动日志</h3>
-                <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
-                    <button
-                        onClick={() => setLogViewMode('list')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${logViewMode === 'list' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        列表
-                    </button>
-                    <button
-                        onClick={() => setLogViewMode('week')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${logViewMode === 'week' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        周视图
-                    </button>
-                </div>
-
-                <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
-                    <button
-                        onClick={() => changeDate(logViewMode === 'week' ? -7 : -1)}
-                        className={`p-1.5 text-slate-500 hover:bg-white hover:text-${theme.primary}-600 rounded-lg transition-colors`}
-                        title={logViewMode === 'week' ? "上一周" : "前一天"}
-                    >
-                        <ChevronLeft size={16} />
-                    </button>
-                    <div className="relative">
-                        <CalendarPopover value={logDate} onChange={setLogDate} theme={theme} variant="full" />
+            <div className="flex flex-col gap-4 mb-4">
+                <h3 className="text-lg font-bold font-serif text-slate-800 flex items-center gap-2"><History className={`text-${theme.primary}-500`} size={20} /> 专注记录</h3>
+                {/* Top Row: Date Switcher (Centered) */}
+                <div className="flex justify-center w-full">
+                    <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                        <button
+                            onClick={() => changeDate(logViewMode === 'week' ? -7 : -1)}
+                            className={`p-1.5 text-slate-500 hover:bg-white hover:text-${theme.primary}-600 rounded-lg transition-colors`}
+                            title={logViewMode === 'week' ? "上一周" : "前一天"}
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <div className="relative">
+                            <CalendarPopover value={logDate} onChange={setLogDate} theme={theme} variant="full" />
+                        </div>
+                        <button
+                            onClick={() => setLogDate(new Date().toISOString().split('T')[0])}
+                            className={`text-xs px-2 py-1 text-slate-500 hover:text-${theme.primary}-600 font-medium hover:bg-white rounded-lg transition-colors`}
+                        >
+                            今天
+                        </button>
+                        <button
+                            onClick={() => changeDate(logViewMode === 'week' ? 7 : 1)}
+                            className={`p-1.5 text-slate-500 hover:bg-white hover:text-${theme.primary}-600 rounded-lg transition-colors`}
+                            title={logViewMode === 'week' ? "下一周" : "后一天"}
+                        >
+                            <ChevronRight size={16} />
+                        </button>
                     </div>
-                    <button
-                        onClick={() => setLogDate(new Date().toISOString().split('T')[0])}
-                        className={`text-xs px-2 py-1 text-slate-500 hover:text-${theme.primary}-600 font-medium hover:bg-white rounded-lg transition-colors`}
-                    >
-                        今天
-                    </button>
-                    <button
-                        onClick={() => changeDate(logViewMode === 'week' ? 7 : 1)}
-                        className={`p-1.5 text-slate-500 hover:bg-white hover:text-${theme.primary}-600 rounded-lg transition-colors`}
-                        title={logViewMode === 'week' ? "下一周" : "后一天"}
-                    >
-                        <ChevronRight size={16} />
-                    </button>
                 </div>
 
-                <button
-                    onClick={() => {
-                        setManualLogStart(getCurrentDateTimeLocal());
-                        setShowAddLog(true);
-                    }}
-                    className={`bg-${theme.primary}-50 hover:bg-${theme.primary}-100 text-${theme.primary}-600 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ml-auto sm:ml-0`}
-                >
-                    + 补录记录
-                </button>
+                {/* Second Row: View Toggle (Left) and Add Button (Right) */}
+                <div className="flex justify-between items-center w-full">
+                    <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                        <button
+                            onClick={() => setLogViewMode('list')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${logViewMode === 'list' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            列表
+                        </button>
+                        <button
+                            onClick={() => setLogViewMode('week')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${logViewMode === 'week' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            周视图
+                        </button>
+                    </div>
+
+                    <button
+                        onClick={() => {
+                            setManualLogStart(getCurrentDateTimeLocal());
+                            setShowAddLog(true);
+                        }}
+                        className={`bg-${theme.primary}-50 hover:bg-${theme.primary}-100 text-${theme.primary}-600 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors`}
+                    >
+                        + 补录记录
+                    </button>
+                </div>
             </div>
 
             {/* Backfill Modal */}
@@ -229,16 +235,33 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
                         const endTime = new Date(session.endTime);
                         const duration = Math.round((endTime.getTime() - startTime.getTime()) / 60000);
 
+                        const getSessionColor = (session: Session) => {
+                            if (session.label.includes('早安')) return 'bg-orange-500';
+                            if (session.label.includes('晚安')) return 'bg-blue-500';
+                            const task = tasks.find(t => t.id === session.taskId);
+                            if (task && task.goalId) {
+                                const goal = goals.find(g => g.id === task.goalId);
+                                if (goal && goal.color) return goal.color;
+                            }
+                            return undefined; // Fallback to theme
+                        };
+                        const barColor = getSessionColor(session);
+
                         return (
                             <div key={session.id} className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-white hover:shadow-sm transition-all group cursor-pointer" onClick={() => setViewingSessionId(session.id)}>
                                 <div className={`w-12 text-center text-xs font-medium text-slate-500`}>
                                     {startTime.getHours().toString().padStart(2, '0')}:{startTime.getMinutes().toString().padStart(2, '0')}
                                 </div>
-                                <div className={`w-1 h-8 rounded-full bg-${theme.primary}-200`} />
+                                <div
+                                    className={`w-1 h-8 rounded-full ${!barColor ? `bg-${theme.primary}-200` : ''}`}
+                                    style={barColor && !barColor.startsWith('bg-') ? { backgroundColor: barColor } : (barColor ? undefined : {})}
+                                >
+                                    {barColor && barColor.startsWith('bg-') && <div className={`w-full h-full rounded-full ${barColor}`} />}
+                                </div>
                                 <div className="flex-1">
                                     <div className="font-medium text-slate-700 text-sm">{session.label}</div>
                                     <div className="text-xs text-slate-400 mt-0.5">
-                                        {duration} 分钟 {session.taskId && <span className="bg-white border border-slate-200 px-1 rounded ml-1">关联任务</span>}
+                                        {duration} 分钟 {session.taskId && tasks.find(t => t.id === session.taskId) && <span className="bg-white border border-slate-200 px-1 rounded ml-1">{tasks.find(t => t.id === session.taskId)?.title}</span>}
                                     </div>
                                 </div>
                                 <button onClick={(e) => { e.stopPropagation(); onDeleteSession(session.id); }} className="p-2 text-slate-300 hover:text-red-500 transition-opacity">

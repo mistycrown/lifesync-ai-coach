@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Session, Task, ThemeConfig } from '../types';
 import { X, Clock } from 'lucide-react';
+import { Select } from './Select';
 
 interface SessionDetailsModalProps {
     session: Session | null;
@@ -49,10 +50,17 @@ export const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
 
     const isCheckin = session.type === 'checkin';
 
+    const taskOptions = [
+        { label: '-- 无关联 --', value: '' },
+        ...tasks.filter(t => !t.completed).map(t => ({ label: t.title, value: t.id }))
+    ];
+
+    const currentTaskLabel = editTaskId ? tasks.find(t => t.id === editTaskId)?.title : '-- 无关联 --';
+
     return (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-slate-100 flex justify-between items-center rounded-t-2xl">
                     <h3 className="font-bold text-slate-800">编辑专注记录</h3>
                     <button onClick={onClose}><X className="text-slate-400 hover:text-slate-600" size={20} /></button>
                 </div>
@@ -88,16 +96,20 @@ export const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                     {!isCheckin && (
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">关联任务</label>
-                            <select
-                                value={editTaskId || ''}
-                                onChange={e => setEditTaskId(e.target.value)}
-                                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-                            >
-                                <option value="">-- 无关联 --</option>
-                                {tasks.filter(t => !t.completed).map(t => (
-                                    <option key={t.id} value={t.id}>{t.title}</option>
-                                ))}
-                            </select>
+                            <Select
+                                value={currentTaskLabel || '-- 无关联 --'}
+                                onChange={(label) => {
+                                    if (label === '-- 无关联 --') {
+                                        setEditTaskId('');
+                                    } else {
+                                        const task = tasks.find(t => t.title === label);
+                                        if (task) setEditTaskId(task.id);
+                                    }
+                                }}
+                                options={taskOptions}
+                                theme={theme}
+                                className="w-full"
+                            />
                         </div>
                     )}
                     <div className="flex justify-between items-center pt-2">

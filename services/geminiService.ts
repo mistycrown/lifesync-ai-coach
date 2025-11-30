@@ -591,7 +591,6 @@ ${logs}
 
 
     const objectiveSummary = `
-### 数据总结
 📅 **日期**：${targetDate.getFullYear()}年${targetDate.getMonth() + 1}月${targetDate.getDate()}日
 
 ⏱️ **总专注时长**：${totalDurationMinutes}分钟
