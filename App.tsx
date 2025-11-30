@@ -21,7 +21,9 @@ import {
     useGoalManagement,
     useVisionManagement,
     useSessionManagement,
-    useHabitManagement
+    useHabitManagement,
+    useChatManagement,
+    useCloudSync
 } from './hooks';
 
 // --- Constants imported from constants/appConstants ---
@@ -145,7 +147,7 @@ const App: React.FC = () => {
         loadInitialState(initialState, 'lifesync-state-v5')
     );
 
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+
     const [isChatOpen, setIsChatOpen] = useState(true);
     const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH);
     const [isResizing, setIsResizing] = useState(false);
@@ -255,15 +257,46 @@ const App: React.FC = () => {
         handleCheckIn
     } = useHabitManagement({ state, setState, triggerAIFeedback });
 
-    // Storage Test State (暂时保留，后续会移到 useCloudSync)
-    const [isTestingStorage, setIsTestingStorage] = useState(false);
-    const [storageTestResult, setStorageTestResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+    // 🔧 架构优化：使用 useChatManagement Hook 管理聊天
+    const {
+        messages,
+        setMessages,
+        updateChatSession,
+        createNewChat,
+        selectChat,
+        deleteChat
+    } = useChatManagement(state, setState, coachService);
 
-    // Sync State (暂时保留，后续会移到 useCloudSync)
-    const [isSyncing, setIsSyncing] = useState(false);
-    const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
-    const [pendingCloudData, setPendingCloudData] = useState<AppState | null>(null);
-    const [restoreSource, setRestoreSource] = useState<'cloud' | 'local'>('cloud');
+    // 🔧 架构优化：使用 useCloudSync Hook 管理云端同步
+    const {
+        isSyncing,
+        syncMessage,
+        pendingCloudData,
+        restoreSource,
+        isTestingStorage,
+        storageTestResult,
+        syncToCloud,
+        syncFromCloud,
+        testStorageConnection,
+        confirmRestore: confirmRestoreBase,
+        cancelRestore,
+        setSyncMessage,
+        setPendingCloudData
+    } = useCloudSync({ state, setState, localSettings, setLocalSettings });
+
+    const confirmRestore = () => {
+        if (pendingCloudData) {
+            // Restart services with new data
+            coachService.startChat(pendingCloudData);
+
+            // Restore messages for UI
+            if (pendingCloudData.currentChatId) {
+                const session = pendingCloudData.chatSessions?.find(s => s.id === pendingCloudData.currentChatId);
+                if (session) setMessages(session.messages);
+            }
+        }
+        confirmRestoreBase();
+    };
 
     // 🔧 架构优化：使用 useDataPersistence Hook 自动保存数据
     useDataPersistence(state, 'lifesync-state-v5');
@@ -294,7 +327,7 @@ const App: React.FC = () => {
             });
             setSettingsTab('coach');
             // 🔧 不再直接重置测试状态，由 Hook 内部管理
-            setStorageTestResult(null);
+
             setSyncMessage(null);
             setPendingCloudData(null);
         }
@@ -330,74 +363,7 @@ const App: React.FC = () => {
     // --- Actions ---
 
     // Helper to update specific session in state
-    const updateChatSession = (chatId: string, newMessages: ChatMessage[]) => {
-        setState(prev => {
-            const sessions = [...prev.chatSessions];
-            const idx = sessions.findIndex(s => s.id === chatId);
-            if (idx !== -1) {
-                const updatedSession = { ...sessions[idx], messages: newMessages, updatedAt: new Date().toISOString() };
-                // Generate title from first message if it's "New Chat" and has messages
-                if (updatedSession.title === "新对话" && newMessages.length > 0 && newMessages[0].role === 'user') {
-                    updatedSession.title = newMessages[0].text.substring(0, 15) + (newMessages[0].text.length > 15 ? "..." : "");
-                }
-                sessions[idx] = updatedSession;
-            }
-            return { ...prev, chatSessions: sessions };
-        });
-    };
-
-    const createNewChat = () => {
-        const newId = Date.now().toString();
-        const newSession: ChatSessionData = {
-            id: newId,
-            title: "新对话",
-            messages: [],
-            updatedAt: new Date().toISOString()
-        };
-
-        setState(prev => ({
-            ...prev,
-            chatSessions: [newSession, ...prev.chatSessions],
-            currentChatId: newId
-        }));
-        setMessages([]);
-    };
-
-    const selectChat = (id: string) => {
-        const session = state.chatSessions.find(s => s.id === id);
-        if (session) {
-            setState(prev => ({ ...prev, currentChatId: id }));
-            setMessages(session.messages);
-            // Only pass history if context is enabled
-            const historyToLoad = state.coachSettings.enableContext ? session.messages : [];
-            coachService.startChat(state, historyToLoad);
-        }
-    };
-
-    const deleteChat = (id: string) => {
-        // Don't allow deleting if it's the only one, or create new one if it is
-        if (state.chatSessions.length <= 1) {
-            setMessages([]);
-            // Create a fresh one instead
-            const newId = Date.now().toString();
-            const newSession = { id: newId, title: "新对话", messages: [], updatedAt: new Date().toISOString() };
-            setState(prev => ({ ...prev, chatSessions: [newSession], currentChatId: newId }));
-            return;
-        }
-
-        const isDeletingCurrent = state.currentChatId === id;
-        const remainingSessions = state.chatSessions.filter(s => s.id !== id);
-
-        setState(prev => ({
-            ...prev,
-            chatSessions: remainingSessions,
-            currentChatId: isDeletingCurrent ? remainingSessions[0].id : prev.currentChatId
-        }));
-
-        if (isDeletingCurrent) {
-            setMessages(remainingSessions[0].messages);
-        }
-    };
+    // 🔧 updateChatSession, createNewChat, selectChat, deleteChat 现在由 useChatManagement Hook 提供
 
     const handleSendMessage = async (text: string, isAutoTrigger = false) => {
         // Ensure we have a valid chat ID
@@ -745,240 +711,7 @@ ${JSON.stringify(result.toolCalls, null, 2)}
     // 更新 Ref，以便 triggerAIFeedback 可以调用最新的 handleSendMessage
     handleSendMessageRef.current = handleSendMessage;
 
-    // 🔧 generateReportContent 现在由 useReportManagement Hook 提供
 
-    // 🔧 generateReportContent 现在由 useReportManagement Hook 提供
-
-    // 🔧 testConnection 现在由 useSettings Hook 提供
-
-    const testStorageConnection = async () => {
-        setIsTestingStorage(true);
-        setStorageTestResult(null);
-        try {
-            await StorageService.testConnection(localSettings.storage);
-            setStorageTestResult({ type: 'success', message: "数据库连接成功！" });
-        } catch (error: any) {
-            setStorageTestResult({ type: 'error', message: error.message || "连接失败" });
-        } finally {
-            setIsTestingStorage(false);
-        }
-    };
-
-    // Track last sync state to optimize uploads
-    const lastSyncRef = useRef<{
-        chatCount: number,
-        reportCount: number,
-        currentChatId: string | null
-    }>({ chatCount: 0, reportCount: 0, currentChatId: null });
-
-    // Auto-sync Effect
-    useEffect(() => {
-        const config = state.storageConfig;
-        // Only auto-sync if Supabase is configured
-        if (config.provider !== 'supabase' || !config.supabaseUrl || !config.supabaseKey) {
-            return;
-        }
-
-        // Debounce sync to avoid too many requests
-        const timer = setTimeout(() => {
-            syncToCloud(true);
-        }, 3000); // 3 seconds after last change
-
-        return () => clearTimeout(timer);
-    }, [state]); // Sync on any state change
-
-    const syncToCloud = async (isAuto = false) => {
-        // Use state config for auto-sync (background), local settings for manual sync (in modal)
-        const config = isAuto ? state.storageConfig : localSettings.storage;
-
-        if (!config.supabaseUrl || !config.supabaseKey) {
-            if (!isAuto) setSyncMessage({ type: 'error', text: "请先配置并填写 Supabase URL 和 Key" });
-            return;
-        }
-
-        // Determine if we need to sync archive data (heavy)
-        // Archive changes if:
-        // 1. User switched chats (old active moves to archive)
-        // 2. User deleted a chat (count changed)
-        // 3. User added/deleted a report
-        // Note: Active chat message updates are now in CORE, so they don't trigger archive sync.
-
-        const currentChatCount = state.chatSessions.length;
-        const currentReportCount = state.reports.length;
-        const currentChatId = state.currentChatId;
-
-        const hasArchiveChanged =
-            currentChatCount !== lastSyncRef.current.chatCount ||
-            currentReportCount !== lastSyncRef.current.reportCount ||
-            currentChatId !== lastSyncRef.current.currentChatId;
-
-        // If auto-sync and only core data changed, skip archive upload
-        const onlyCore = isAuto && !hasArchiveChanged;
-
-        // We'll upload the CURRENT state, but with the NEW storage config embedded to ensure consistency on restore
-        const stateToUpload = { ...state, storageConfig: config };
-
-        if (!isAuto) {
-            setIsSyncing(true);
-            setSyncMessage({ type: 'info', text: onlyCore ? "正在同步核心数据..." : "正在全量同步..." });
-        } else {
-            // Optional: Show a subtle "Saving..." indicator in a different state variable if desired
-            // For now we can just let it happen silently or use a non-blocking message
-        }
-
-        try {
-            await StorageService.uploadData(config, stateToUpload, onlyCore);
-
-            // Update reference if successful. 
-            // We update it regardless of onlyCore, because if onlyCore=true, it means archive didn't change, 
-            // so updating the ref to current values (which are same as old values for archive parts) is safe.
-            lastSyncRef.current = {
-                chatCount: currentChatCount,
-                reportCount: currentReportCount,
-                currentChatId: currentChatId
-            };
-
-            if (!isAuto) {
-                setSyncMessage({ type: 'success', text: "上传成功！数据已安全存储。" });
-            } else {
-                console.log(`Auto-sync success (${onlyCore ? 'Core Only' : 'Full'})`);
-            }
-        } catch (e: any) {
-            console.error("Sync failed:", e);
-            if (!isAuto) {
-                setSyncMessage({ type: 'error', text: "上传失败: " + e.message });
-            }
-        } finally {
-            if (!isAuto) {
-                setIsSyncing(false);
-            }
-        }
-    };
-
-    const syncFromCloud = async () => {
-        const config = localSettings.storage;
-        console.log('Sync from cloud triggered', config);
-        if (!config.supabaseUrl || !config.supabaseKey) {
-            setSyncMessage({ type: 'error', text: "请先配置并填写 Supabase URL 和 Key" });
-            return;
-        }
-
-        setIsSyncing(true);
-        setSyncMessage({ type: 'info', text: "正在从云端下载..." });
-        try {
-            const cloudState = await StorageService.downloadData(config);
-            if (cloudState) {
-                setPendingCloudData(cloudState);
-                setRestoreSource('cloud');
-                setSyncMessage(null); // Clear loading message, show card
-            } else {
-                setSyncMessage({ type: 'error', text: "云端没有找到备份数据" });
-            }
-        } catch (e: any) {
-            setSyncMessage({ type: 'error', text: "下载失败: " + e.message });
-        } finally {
-            setIsSyncing(false);
-        }
-    };
-
-    const confirmRestore = () => {
-        if (!pendingCloudData) return;
-        console.log('Restoring data:', pendingCloudData);
-        setState(pendingCloudData);
-        setLocalSettings({
-            coach: pendingCloudData.coachSettings,
-            storage: pendingCloudData.storageConfig
-        });
-        // Restart services
-        coachService.startChat(pendingCloudData);
-
-        // Restore messages for UI
-        if (pendingCloudData.currentChatId) {
-            const session = pendingCloudData.chatSessions?.find(s => s.id === pendingCloudData.currentChatId);
-            if (session) setMessages(session.messages);
-        }
-
-        setPendingCloudData(null);
-        setSyncMessage({ type: 'success', text: `已成功从${restoreSource === 'cloud' ? '云端' : '本地'}恢复数据！` });
-    };
-
-    const cancelRestore = () => {
-        setPendingCloudData(null);
-        setSyncMessage(null);
-    };
-
-
-    // 🔧 handleImportClick 和 importData 现在由 useSettings Hook 提供
-
-    // --- State Modifiers ---
-
-    // 🔧 addTask, updateTask, toggleTask, deleteTask 现在由 useTaskManagement Hook 提供
-
-
-    // 🔧 addGoal, updateGoal, toggleGoal, deleteGoal 现在由 useGoalManagement Hook 提供
-
-    // 🔧 addGoal, updateGoal, toggleGoal, deleteGoal 现在由 useGoalManagement Hook 提供
-
-    // 🔧 addVision, updateVision, deleteVision, toggleVisionArchived 现在由 useVisionManagement Hook 提供
-
-    // 🔧 startSession, stopSession, addManualSession, updateSession, renameSession, deleteSession 现在由 useSessionManagement Hook 提供
-
-    // 🔧 addHabit, updateHabit, deleteHabit, toggleCheckIn, handleCheckIn 现在由 useHabitManagement Hook 提供
-
-    // 🔧 addReport, updateReport, deleteReport 现在由 useReportManagement Hook 提供
-
-    // 🔧 updateTheme 现在由 useSettings Hook 提供
-
-    // --- Settings Logic ---
-
-    const handleStyleChange = (selectedStyle: string) => {
-        const preset = COACH_STYLES.find(s => s.label === selectedStyle);
-
-        setLocalSettings(prev => ({
-            ...prev,
-            coach: {
-                ...prev.coach,
-                style: selectedStyle,
-                customInstruction: preset ? preset.value : prev.coach.customInstruction
-            }
-        }));
-    };
-
-    const handleProviderPreset = (provider: string) => {
-        let baseUrl = '';
-        let modelId = '';
-
-        if (provider === 'deepseek') {
-            baseUrl = 'https://api.deepseek.com';
-            modelId = 'deepseek-chat';
-        } else if (provider === 'siliconflow') {
-            baseUrl = 'https://api.siliconflow.cn/v1';
-            modelId = 'deepseek-ai/DeepSeek-V3';
-        } else if (provider === 'openai') {
-            baseUrl = 'https://api.openai.com/v1';
-            modelId = 'gpt-3.5-turbo';
-        } else {
-            baseUrl = '';
-            modelId = 'gemini-2.5-flash';
-        }
-
-        setLocalSettings(prev => ({
-            ...prev,
-            coach: {
-                ...prev.coach,
-                modelConfig: {
-                    ...prev.coach.modelConfig,
-                    provider: provider as any,
-                    baseUrl,
-                    modelId
-                }
-            }
-        }));
-    };
-
-    // 🔧 saveSettings 现在由 useSettings Hook 提供
-
-    // 🔧 exportData 现在由 useSettings Hook 提供
 
     const contextValue: AppContextType = {
         state,
