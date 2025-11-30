@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { History, ChevronLeft, ChevronRight, FileText, Loader2, Save, Edit2, Trash2 } from 'lucide-react';
 import { Session, DailyReport, ThemeConfig, Task, Goal } from '../../types';
 import { CalendarPopover } from '../Calendar';
+import { TimePicker } from '../TimePicker';
 import { WeeklyTimeline } from '../WeeklyTimeline';
 import ReactMarkdown from 'react-markdown';
 
@@ -182,15 +183,27 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
                                     placeholder="做了什么..."
                                 />
                             </div>
+                            <div>
+                                <label className="block text-sm text-slate-600 mb-1">日期</label>
+                                <CalendarPopover
+                                    value={manualLogStart.split('T')[0]}
+                                    onChange={(date) => {
+                                        const timePart = manualLogStart.split('T')[1] || '00:00';
+                                        setManualLogStart(`${date}T${timePart}`);
+                                    }}
+                                    theme={theme}
+                                    variant="full"
+                                />
+                            </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-sm text-slate-600 mb-1">开始时间</label>
-                                    <input
-                                        type="datetime-local"
-                                        required
-                                        value={manualLogStart}
-                                        onChange={(e) => setManualLogStart(e.target.value)}
-                                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                                    <TimePicker
+                                        value={manualLogStart.split('T')[1] || '00:00'}
+                                        onChange={(time) => {
+                                            const datePart = manualLogStart.split('T')[0];
+                                            setManualLogStart(`${datePart}T${time}`);
+                                        }}
                                     />
                                 </div>
                                 <div>

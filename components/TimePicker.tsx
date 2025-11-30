@@ -9,6 +9,8 @@ interface TimePickerProps {
 export const TimePicker: React.FC<TimePickerProps> = ({ value, onChange }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const hoursRef = useRef<HTMLDivElement>(null);
+    const minutesRef = useRef<HTMLDivElement>(null);
 
     // Parse value
     const [h, m] = value.split(':').map(Number);
@@ -25,6 +27,22 @@ export const TimePicker: React.FC<TimePickerProps> = ({ value, onChange }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    useEffect(() => {
+        if (isOpen) {
+            // Small timeout to ensure DOM is rendered
+            setTimeout(() => {
+                if (hoursRef.current) {
+                    const selectedHour = hoursRef.current.querySelector('[data-selected="true"]');
+                    if (selectedHour) selectedHour.scrollIntoView({ block: 'center' });
+                }
+                if (minutesRef.current) {
+                    const selectedMinute = minutesRef.current.querySelector('[data-selected="true"]');
+                    if (selectedMinute) selectedMinute.scrollIntoView({ block: 'center' });
+                }
+            }, 0);
+        }
+    }, [isOpen]);
+
     return (
         <div className="relative" ref={containerRef}>
             <button
@@ -39,12 +57,13 @@ export const TimePicker: React.FC<TimePickerProps> = ({ value, onChange }) => {
             {isOpen && (
                 <div className="absolute top-full mt-1 left-0 bg-white rounded-xl shadow-xl border border-slate-100 p-2 z-50 flex gap-2 w-48 animate-in fade-in zoom-in-95 duration-200">
                     {/* Hours */}
-                    <div className="flex-1 h-48 overflow-y-auto custom-scrollbar">
+                    <div className="flex-1 h-48 overflow-y-auto custom-scrollbar" ref={hoursRef}>
                         <div className="text-xs font-medium text-slate-400 text-center mb-1 sticky top-0 bg-white">时</div>
                         <div className="space-y-1">
                             {hours.map(hour => (
                                 <button
                                     key={hour}
+                                    data-selected={hour === h}
                                     onClick={() => onChange(`${String(hour).padStart(2, '0')}:${String(m).padStart(2, '0')}`)}
                                     className={`w-full text-center py-1 rounded text-sm ${hour === h ? 'bg-indigo-600 text-white font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
                                 >
@@ -58,12 +77,13 @@ export const TimePicker: React.FC<TimePickerProps> = ({ value, onChange }) => {
                     <div className="w-[1px] bg-slate-100 my-2"></div>
 
                     {/* Minutes */}
-                    <div className="flex-1 h-48 overflow-y-auto custom-scrollbar">
+                    <div className="flex-1 h-48 overflow-y-auto custom-scrollbar" ref={minutesRef}>
                         <div className="text-xs font-medium text-slate-400 text-center mb-1 sticky top-0 bg-white">分</div>
                         <div className="space-y-1">
                             {minutes.map(minute => (
                                 <button
                                     key={minute}
+                                    data-selected={minute === m}
                                     onClick={() => onChange(`${String(h).padStart(2, '0')}:${String(minute).padStart(2, '0')}`)}
                                     className={`w-full text-center py-1 rounded text-sm ${minute === m ? 'bg-indigo-600 text-white font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
                                 >

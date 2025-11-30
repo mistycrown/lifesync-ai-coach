@@ -76,20 +76,20 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold font-serif text-slate-800 flex items-center gap-2">
                     {goalsViewMode === 'goals' ? <Flag className={`text-${theme.primary}-500`} size={20} /> : <Target className={`text-${theme.primary}-500`} size={20} />}
-                    {goalsViewMode === 'goals' ? '目标与截止日期' : '长期愿景'}
+                    {goalsViewMode === 'goals' ? '中期目标' : '长期愿景'}
                 </h3>
                 <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100">
                     <button
                         onClick={() => setGoalsViewMode('goals')}
                         className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${goalsViewMode === 'goals' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                        短期目标
+                        目标
                     </button>
                     <button
                         onClick={() => setGoalsViewMode('visions')}
                         className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${goalsViewMode === 'visions' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                        长期愿景
+                        愿景
                     </button>
                 </div>
             </div>
