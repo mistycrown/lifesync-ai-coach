@@ -68,6 +68,7 @@ export class StorageService {
                 updated_at: new Date().toISOString()
             };
             const url = `${config.supabaseUrl!.replace(/\/$/, '')}/rest/v1/${SUPABASE_TABLE}`;
+            console.log(`Uploading chunk ${id}...`);
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -80,8 +81,10 @@ export class StorageService {
             });
             if (!response.ok) {
                 const text = await response.text();
+                console.error(`Upload failed for ${id}:`, text);
                 throw new Error(`上传失败 (${id}): ${text}`);
             }
+            console.log(`Upload success for ${id}`);
         };
 
         const promises = [uploadChunk(BACKUP_ID_CORE, coreData)];
@@ -101,7 +104,9 @@ export class StorageService {
 
         // Helper to download a chunk
         const downloadChunk = async (id: string) => {
-            const url = `${config.supabaseUrl!.replace(/\/$/, '')}/rest/v1/${SUPABASE_TABLE}?id=eq.${id}&select=data`;
+            // Add order=updated_at.desc to ensure we get the latest if duplicates exist
+            const url = `${config.supabaseUrl!.replace(/\/$/, '')}/rest/v1/${SUPABASE_TABLE}?id=eq.${id}&select=data&order=updated_at.desc&limit=1`;
+            console.log(`Downloading chunk ${id}...`);
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
@@ -110,8 +115,12 @@ export class StorageService {
                 },
                 cache: 'no-store'
             });
-            if (!response.ok) return null;
+            if (!response.ok) {
+                console.error(`Download failed for ${id}:`, response.status);
+                return null;
+            }
             const json = await response.json();
+            console.log(`Downloaded ${id}:`, json && json.length > 0 ? 'Found' : 'Not Found');
             return (json && json.length > 0) ? json[0].data : null;
         };
 
@@ -122,6 +131,7 @@ export class StorageService {
         ]);
 
         if (coreData) {
+            console.log('Found Core Data, merging...');
             // Reconstruct full chat sessions list
             let allSessions = archiveData?.chatSessions || [];
             if (coreData.activeChatSession) {
@@ -139,9 +149,11 @@ export class StorageService {
             } as AppState;
         }
 
+        console.log('Core Data not found, trying legacy...');
         // Fallback: Try legacy single-file backup
         const legacyData = await downloadChunk(BACKUP_ID_LEGACY);
         if (legacyData) {
+            console.log('Found Legacy Data');
             return legacyData as AppState;
         }
 
