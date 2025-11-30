@@ -326,7 +326,7 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
                 {reportForSelectedDate ? (
                     <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 cursor-pointer hover:shadow-md transition-all group" onClick={() => setViewingReportId(reportForSelectedDate.id)}>
                         <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-bold text-slate-800">{reportForSelectedDate.title}</h4>
+                            <h4 className="font-bold font-serif text-slate-800">{reportForSelectedDate.title}</h4>
                             <div className="flex gap-1 transition-opacity">
                                 <button onClick={(e) => { e.stopPropagation(); onDeleteReport(reportForSelectedDate.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                             </div>
@@ -347,7 +347,7 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
                                     <input
                                         value={generatedReport.title}
                                         onChange={(e) => setGeneratedReport({ ...generatedReport, title: e.target.value })}
-                                        className="font-bold text-lg bg-transparent border-b border-slate-300 focus:border-indigo-500 outline-none w-full mr-4"
+                                        className="font-bold font-serif text-lg bg-transparent border-b border-slate-300 focus:border-indigo-500 outline-none w-full mr-4"
                                     />
                                     <div className="flex gap-2 shrink-0">
                                         <button onClick={() => setGeneratedReport(null)} className="text-slate-400 hover:text-slate-600 p-2">取消</button>

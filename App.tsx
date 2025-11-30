@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Settings, BarChart3, MessageSquare, X, Sparkles, FileText, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson, Search, Bug, PanelRightClose } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
 import { Dashboard } from './components/Dashboard';
@@ -208,11 +208,11 @@ const App: React.FC = () => {
     // 解决循环依赖：使用 Ref 来引用尚未定义的 handleSendMessage
     const handleSendMessageRef = React.useRef<(text: string, isAuto?: boolean) => Promise<void>>(async () => { });
 
-    const triggerAIFeedback = (text: string) => {
+    const triggerAIFeedback = useCallback((text: string) => {
         setTimeout(() => {
             handleSendMessageRef.current(text, true);
         }, 500);
-    };
+    }, []);
 
     // 🔧 架构优化：使用 useTaskManagement Hook 管理任务
     const {

@@ -1,6 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import { ListTodo, CheckCircle, Circle, Flag, Clock, Trash2, Plus, Sun, Moon, Check, Play } from 'lucide-react';
 import { Task, Habit, ThemeConfig, Goal, Session } from '../../types';
+
+interface TaskItemProps {
+    task: Task;
+    theme: ThemeConfig;
+    activeSession: Session | undefined;
+    goalTitle?: string;
+    totalDurationMinutes: number;
+    onToggleTask: (id: string) => void;
+    onDeleteTask: (id: string) => void;
+    onStartSession: (label: string, taskId?: string) => void;
+    setViewingTaskId: (id: string | null) => void;
+}
+
+const TaskItem = memo(({
+    task,
+    theme,
+    activeSession,
+    goalTitle,
+    totalDurationMinutes,
+    onToggleTask,
+    onDeleteTask,
+    onStartSession,
+    setViewingTaskId
+}: TaskItemProps) => {
+    return (
+        <div className={`group flex items-center gap-3 p-3 rounded-xl border ${task.completed ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-100 shadow-sm'} transition-all hover:shadow-md cursor-pointer`} onClick={() => setViewingTaskId(task.id)}>
+            <button onClick={(e) => { e.stopPropagation(); onToggleTask(task.id); }} className={`text-slate-300 hover:text-${theme.primary}-500 transition-colors`}>
+                {task.completed ? <CheckCircle className="text-emerald-500" size={20} /> : <Circle size={20} />}
+            </button>
+            <div className="flex-1 flex flex-col">
+                <span className={`text-sm ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                    {task.title}
+                </span>
+                <div className="flex items-center gap-2 mt-0.5">
+                    {goalTitle && (
+                        <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
+                            <Flag size={8} /> {goalTitle}
+                        </span>
+                    )}
+                    <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
+                        <Clock size={8} /> {totalDurationMinutes}m
+                    </span>
+                </div>
+            </div>
+            <div className="flex items-center gap-1 transition-opacity">
+                {!task.completed && !activeSession && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onStartSession(task.title, task.id);
+                        }}
+                        className={`p-1.5 text-slate-400 hover:text-${theme.primary}-600 hover:bg-${theme.primary}-50 rounded transition-colors`}
+                        title="开始专注"
+                    >
+                        <Play size={14} />
+                    </button>
+                )}
+                <button onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14} /></button>
+            </div>
+        </div>
+    );
+});
 
 interface TasksSectionProps {
     tasks: Task[];
@@ -19,7 +81,7 @@ interface TasksSectionProps {
     setViewingHabitId: (id: string | null) => void;
 }
 
-export const TasksSection: React.FC<TasksSectionProps> = ({
+export const TasksSection: React.FC<TasksSectionProps> = memo(({
     tasks,
     goals,
     sessions,
@@ -40,28 +102,28 @@ export const TasksSection: React.FC<TasksSectionProps> = ({
     const [newHabitTitle, setNewHabitTitle] = useState('');
 
     // SORTING LOGIC: Uncompleted first (Newest to Oldest), then Completed
-    const sortedTasks = [...tasks].sort((a, b) => {
+    const sortedTasks = useMemo(() => [...tasks].sort((a, b) => {
         if (a.completed === b.completed) {
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         }
         return a.completed ? 1 : -1;
-    });
+    }), [tasks]);
 
-    const handleAddTaskSubmit = (e: React.FormEvent) => {
+    const handleAddTaskSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
         if (newTaskTitle.trim()) {
             onAddTask(newTaskTitle);
             setNewTaskTitle('');
         }
-    };
+    }, [newTaskTitle, onAddTask]);
 
-    const handleAddHabitSubmit = (e: React.FormEvent) => {
+    const handleAddHabitSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
         if (newHabitTitle.trim()) {
             onAddHabit(newHabitTitle);
             setNewHabitTitle('');
         }
-    };
+    }, [newHabitTitle, onAddHabit]);
 
     return (
         <div className="bg-white rounded-3xl p-6 shadow-float border border-white/50 flex flex-col h-[500px]">
@@ -95,43 +157,25 @@ export const TasksSection: React.FC<TasksSectionProps> = ({
                         {sortedTasks.length === 0 && (
                             <p className="text-slate-400 text-sm text-center py-4">暂无任务。添加一个或咨询你的教练。</p>
                         )}
-                        {sortedTasks.map(task => (
-                            <div key={task.id} className={`group flex items-center gap-3 p-3 rounded-xl border ${task.completed ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-100 shadow-sm'} transition-all hover:shadow-md cursor-pointer`} onClick={() => setViewingTaskId(task.id)}>
-                                <button onClick={(e) => { e.stopPropagation(); onToggleTask(task.id); }} className={`text-slate-300 hover:text-${theme.primary}-500 transition-colors`}>
-                                    {task.completed ? <CheckCircle className="text-emerald-500" size={20} /> : <Circle size={20} />}
-                                </button>
-                                <div className="flex-1 flex flex-col">
-                                    <span className={`text-sm ${task.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
-                                        {task.title}
-                                    </span>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                        {task.goalId && (
-                                            <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
-                                                <Flag size={8} /> {goals.find(g => g.id === task.goalId)?.title}
-                                            </span>
-                                        )}
-                                        <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
-                                            <Clock size={8} /> {Math.floor(sessions.filter(s => s.taskId === task.id).reduce((acc, s) => acc + s.durationSeconds, 0) / 60)}m
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-1 transition-opacity">
-                                    {!task.completed && !activeSession && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                onStartSession(task.title, task.id);
-                                            }}
-                                            className={`p-1.5 text-slate-400 hover:text-${theme.primary}-600 hover:bg-${theme.primary}-50 rounded transition-colors`}
-                                            title="开始专注"
-                                        >
-                                            <Play size={14} />
-                                        </button>
-                                    )}
-                                    <button onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14} /></button>
-                                </div>
-                            </div>
-                        ))}
+                        {sortedTasks.map(task => {
+                            const goalTitle = task.goalId ? goals.find(g => g.id === task.goalId)?.title : undefined;
+                            const totalDurationMinutes = Math.floor(sessions.filter(s => s.taskId === task.id).reduce((acc, s) => acc + s.durationSeconds, 0) / 60);
+
+                            return (
+                                <TaskItem
+                                    key={task.id}
+                                    task={task}
+                                    theme={theme}
+                                    activeSession={activeSession}
+                                    goalTitle={goalTitle}
+                                    totalDurationMinutes={totalDurationMinutes}
+                                    onToggleTask={onToggleTask}
+                                    onDeleteTask={onDeleteTask}
+                                    onStartSession={onStartSession}
+                                    setViewingTaskId={setViewingTaskId}
+                                />
+                            );
+                        })}
                     </div>
                     <form onSubmit={handleAddTaskSubmit} className="mt-4 flex gap-2">
                         <input
@@ -197,4 +241,4 @@ export const TasksSection: React.FC<TasksSectionProps> = ({
             )}
         </div>
     );
-};
+});
