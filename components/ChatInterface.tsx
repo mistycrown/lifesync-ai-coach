@@ -176,7 +176,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     </div>
                     <span className="text-amber-900 font-bold text-sm">调试信息</span>
                     <span className="text-amber-600 text-[10px] ml-auto">
-                      {msg.timestamp.toLocaleTimeString()}
+                      {new Date(msg.timestamp).toLocaleTimeString()}
                     </span>
                   </div>
                   <div className="markdown-body debug-markdown [&_pre]:whitespace-pre-wrap [&_pre]:break-all [&_code]:whitespace-pre-wrap [&_code]:break-all [&_pre]:bg-slate-950 [&_pre]:text-white [&_pre_code]:text-white [&_pre_code]:bg-transparent [&_code]:bg-transparent [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_h2]:text-amber-900 [&_h2]:text-sm [&_h2]:font-bold [&_h2]:mb-2 [&_h2]:mt-3 [&_h3]:text-amber-800 [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:mt-2 text-slate-700">

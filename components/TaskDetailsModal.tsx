@@ -126,7 +126,10 @@ export const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                             {taskSessions.length === 0 && <p className="text-sm text-slate-400">暂无专注记录</p>}
                             {taskSessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()).map(s => (
                                 <div key={s.id} className="flex justify-between items-center text-sm p-2 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
-                                    <span className="text-slate-600">{new Date(s.startTime).toLocaleString()}</span>
+                                    <div className="flex flex-col">
+                                        <span className="text-slate-700 font-medium">{s.label || '专注会话'}</span>
+                                        <span className="text-xs text-slate-400">{new Date(s.startTime).toLocaleString()}</span>
+                                    </div>
                                     <span className="font-mono text-slate-500">{Math.floor(s.durationSeconds / 60)}m</span>
                                 </div>
                             ))}

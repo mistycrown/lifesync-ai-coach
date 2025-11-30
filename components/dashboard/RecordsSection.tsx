@@ -353,11 +353,11 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
                                 </p>
                                 <button
                                     onClick={handleGenerateClick}
-                                    disabled={isGeneratingReport}
+                                    disabled={isGeneratingReport || new Date(logDate) > new Date()}
                                     className={`bg-${theme.primary}-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-${theme.primary}-700 transition-all shadow-lg shadow-${theme.primary}-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2 mx-auto`}
                                 >
                                     {isGeneratingReport ? <Loader2 className="animate-spin" size={20} /> : <FileText size={20} />}
-                                    {isGeneratingReport ? "正在生成..." : "生成日报"}
+                                    {isGeneratingReport ? "正在生成..." : (new Date(logDate) > new Date() ? "无法生成未来日报" : "生成日报")}
                                 </button>
                             </div>
                         )}

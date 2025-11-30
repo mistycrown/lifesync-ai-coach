@@ -2,22 +2,28 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 
 interface CalendarProps {
-    value: string; // YYYY-MM-DD
+    value: string; // YYYY-MM-DD or YYYY-MM-DDTHH:mm
     onChange: (date: string) => void;
     theme: any;
     variant?: 'full' | 'icon' | 'responsive';
     placement?: 'top' | 'bottom';
+    showTime?: boolean;
 }
 
-export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, theme, variant = 'responsive', placement = 'bottom' }) => {
+export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, theme, variant = 'responsive', placement = 'bottom', showTime = false }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [time, setTime] = useState('00:00');
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (value) {
-            // Parse YYYY-MM-DD directly to avoid timezone issues
-            const [y, m, d] = value.split('-').map(Number);
+            const datePart = value.split('T')[0].split(' ')[0];
+            const timePart = value.includes('T') ? value.split('T')[1] : (value.includes(' ') ? value.split(' ')[1] : '00:00');
+
+            if (timePart) setTime(timePart.slice(0, 5));
+
+            const [y, m, d] = datePart.split('-').map(Number);
             if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
                 setCurrentMonth(new Date(y, m - 1, d));
             }
@@ -35,7 +41,7 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
     }, []);
 
     const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
-    const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay(); // 0 is Sunday
+    const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
 
     const handlePrevMonth = () => {
         setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
@@ -49,8 +55,26 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth() + 1;
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        onChange(dateStr);
-        setIsOpen(false);
+
+        if (showTime) {
+            onChange(`${dateStr}T${time}`);
+        } else {
+            onChange(dateStr);
+            setIsOpen(false);
+        }
+    };
+
+    const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newTime = e.target.value;
+        setTime(newTime);
+        // Update parent immediately if date is already selected (which it implicitly is via currentMonth/value)
+        // But we need the current selected day. 
+        // Let's extract current selected day from value if possible, else use today? 
+        // Better: extract from 'value' prop.
+        if (value) {
+            const datePart = value.split('T')[0].split(' ')[0];
+            onChange(`${datePart}T${newTime}`);
+        }
     };
 
     const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
@@ -64,16 +88,18 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
         }
     };
 
+    const displayValue = showTime ? value.replace('T', ' ').slice(0, 16) : value;
+
     return (
         <div className="relative" ref={containerRef}>
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center justify-center gap-2 px-2 py-2 xl:px-3 xl:py-1.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:border-${theme.primary}-300 hover:text-${theme.primary}-600 transition-colors shadow-sm`}
-                title={value}
+                className={`flex items-center justify-center gap-2 px-2 py-2 xl:px-3 xl:py-1.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:border-${theme.primary}-300 hover:text-${theme.primary}-600 transition-colors shadow-sm w-full`}
+                title={displayValue}
             >
                 <CalendarIcon size={16} className={`text-${theme.primary}-500 shrink-0`} />
-                <span className={getTextClass()}>{value}</span>
+                <span className={getTextClass()}>{displayValue || '选择日期'}</span>
             </button>
 
             {isOpen && (
@@ -97,7 +123,9 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
                         {Array.from({ length: daysInMonth }).map((_, i) => {
                             const day = i + 1;
                             const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                            const isSelected = value === dateStr;
+                            // Check match for date part only
+                            const valueDatePart = value ? value.split('T')[0].split(' ')[0] : '';
+                            const isSelected = valueDatePart === dateStr;
 
                             const today = new Date();
                             const isToday = today.getFullYear() === currentMonth.getFullYear() &&
@@ -121,19 +149,46 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
                         })}
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-slate-50 flex justify-center">
+                    {showTime && (
+                        <div className="mt-4 pt-3 border-t border-slate-100">
+                            <label className="block text-xs font-medium text-slate-500 mb-1">时间</label>
+                            <input
+                                type="time"
+                                value={time}
+                                onChange={handleTimeChange}
+                                className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                        </div>
+                    )}
+
+                    <div className="mt-3 pt-3 border-t border-slate-50 flex justify-between items-center">
                         <button
                             type="button"
                             onClick={() => {
                                 const today = new Date();
                                 const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                                onChange(dateStr);
-                                setIsOpen(false);
+                                if (showTime) {
+                                    const nowTime = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
+                                    onChange(`${dateStr}T${nowTime}`);
+                                    setTime(nowTime);
+                                } else {
+                                    onChange(dateStr);
+                                    setIsOpen(false);
+                                }
                             }}
                             className={`text-xs text-${theme.primary}-600 font-medium hover:underline`}
                         >
-                            回到今天
+                            今天
                         </button>
+                        {showTime && (
+                            <button
+                                type="button"
+                                onClick={() => setIsOpen(false)}
+                                className={`px-3 py-1 bg-${theme.primary}-600 text-white text-xs rounded-lg hover:bg-${theme.primary}-700`}
+                            >
+                                确定
+                            </button>
+                        )}
                     </div>
                 </div>
             )}

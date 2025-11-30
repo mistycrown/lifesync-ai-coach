@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Session, Task, ThemeConfig } from '../types';
 import { X, Clock } from 'lucide-react';
 import { Select } from './Select';
+import { CalendarPopover } from './Calendar';
+import { TimePicker } from './TimePicker';
 
 interface SessionDetailsModalProps {
     session: Session | null;
@@ -57,6 +59,24 @@ export const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
 
     const currentTaskLabel = editTaskId ? tasks.find(t => t.id === editTaskId)?.title : '-- 无关联 --';
 
+    const getLocalTimeStr = (isoString: string) => {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${hours}:${minutes}`;
+    };
+
+    const updateTime = (originalIso: string, newTime: string) => {
+        const [h, m] = newTime.split(':').map(Number);
+        const date = new Date(originalIso);
+        date.setHours(h);
+        date.setMinutes(m);
+        date.setSeconds(0);
+        date.setMilliseconds(0);
+        return date.toISOString();
+    };
+
     return (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -73,26 +93,43 @@ export const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">开始时间</label>
-                            <input
-                                type="datetime-local"
-                                value={editStart.slice(0, 16)}
-                                onChange={e => setEditStart(new Date(e.target.value).toISOString())}
-                                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">结束时间</label>
-                            <input
-                                type="datetime-local"
-                                value={editEnd ? editEnd.slice(0, 16) : ''}
-                                onChange={e => setEditEnd(new Date(e.target.value).toISOString())}
-                                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                            />
-                        </div>
+                    <div className="text-sm text-slate-500 mb-2">
+                        日期：{new Date(editStart).toLocaleDateString()}
                     </div>
+                    {isCheckin ? (
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">打卡时间</label>
+                            <TimePicker
+                                value={getLocalTimeStr(editStart)}
+                                onChange={time => {
+                                    const newDateTime = updateTime(editStart, time);
+                                    setEditStart(newDateTime);
+                                    setEditEnd(newDateTime);
+                                }}
+                            />
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">开始时间</label>
+                                <TimePicker
+                                    value={getLocalTimeStr(editStart)}
+                                    onChange={time => {
+                                        setEditStart(updateTime(editStart, time));
+                                    }}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">结束时间</label>
+                                <TimePicker
+                                    value={getLocalTimeStr(editEnd || editStart)}
+                                    onChange={time => {
+                                        setEditEnd(updateTime(editEnd || editStart, time));
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )}
                     {!isCheckin && (
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">关联任务</label>
