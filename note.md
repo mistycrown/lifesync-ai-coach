@@ -198,24 +198,6 @@ const handleAddTask = useCallback((title: string) => {
 export const TaskItem = React.memo(({ task, onToggle }) => {
   // ...
 });
-问题 2：localStorage 同步阻塞主线程
-现状： 每次状态变化立即同步存储
 
-优化方案：
 
-typescript
-// 使用防抖延迟保存
-import { debounce } from 'lodash';
-
-const debouncedSave = useMemo(
-  () => debounce((data) => {
-    localStorage.setItem('app-state', JSON.stringify(data));
-  }, 1000),
-  []
-);
-问题 3：大列表渲染性能
-优化方案： 使用虚拟滚动
-
-bash
-npm install react-window
 

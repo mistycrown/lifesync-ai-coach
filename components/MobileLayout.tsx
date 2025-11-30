@@ -37,30 +37,12 @@ export const MobileLayout: React.FC = () => {
         isLoading
     } = useApp();
 
-    const [activeTab, setActiveTab] = useState<'chat' | 'focus' | 'goals' | 'records' | 'settings'>('chat');
+    const [activeTab, setActiveTab] = useState<'chat' | 'focus' | 'goals' | 'records' | 'settings'>('focus');
 
     const activeSession = state.sessions.find(s => s.id === state.activeSessionId);
 
     const renderContent = () => {
         switch (activeTab) {
-            case 'chat':
-                return (
-                    <div className="h-full pb-16">
-                        <ChatInterface
-                            messages={messages}
-                            onSendMessage={actions.sendMessage}
-                            isLoading={isLoading}
-                            settings={state.coachSettings}
-                            theme={theme}
-                            chatSessions={state.chatSessions}
-                            currentChatId={state.currentChatId}
-                            onNewChat={actions.createNewChat}
-                            onSelectChat={actions.selectChat}
-                            onDeleteChat={actions.deleteChat}
-                            onCloseChat={() => { }} // No close on mobile tab
-                        />
-                    </div>
-                );
             case 'focus':
                 return (
                     <div className="h-full overflow-y-auto p-4 pb-24 space-y-6 custom-scrollbar">
@@ -86,6 +68,24 @@ export const MobileLayout: React.FC = () => {
                             onToggleCheckIn={actions.toggleCheckIn}
                             setViewingTaskId={setViewingTaskId}
                             setViewingHabitId={setViewingHabitId}
+                        />
+                    </div>
+                );
+            case 'chat':
+                return (
+                    <div className="h-full pb-16">
+                        <ChatInterface
+                            messages={messages}
+                            onSendMessage={actions.sendMessage}
+                            isLoading={isLoading}
+                            settings={state.coachSettings}
+                            theme={theme}
+                            chatSessions={state.chatSessions}
+                            currentChatId={state.currentChatId}
+                            onNewChat={actions.createNewChat}
+                            onSelectChat={actions.selectChat}
+                            onDeleteChat={actions.deleteChat}
+                            onCloseChat={() => { }} // No close on mobile tab
                         />
                     </div>
                 );
@@ -252,16 +252,16 @@ export const MobileLayout: React.FC = () => {
             {/* Bottom Navigation Bar */}
             <div className="h-16 bg-white border-t border-slate-200 flex items-center justify-around shrink-0 z-50 fixed bottom-0 w-full pb-safe">
                 <button
-                    onClick={() => setActiveTab('chat')}
-                    className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'chat' ? `text-${theme.primary}-600` : 'text-slate-400'}`}
-                >
-                    <MessageSquare size={24} />
-                </button>
-                <button
                     onClick={() => setActiveTab('focus')}
                     className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'focus' ? `text-${theme.primary}-600` : 'text-slate-400'}`}
                 >
                     <CheckCircle size={24} />
+                </button>
+                <button
+                    onClick={() => setActiveTab('chat')}
+                    className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${activeTab === 'chat' ? `text-${theme.primary}-600` : 'text-slate-400'}`}
+                >
+                    <MessageSquare size={24} />
                 </button>
                 <button
                     onClick={() => setActiveTab('goals')}
