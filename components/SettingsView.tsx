@@ -208,7 +208,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <Select
                                 value={localSettings.coach.style}
                                 onChange={handleStyleChange}
-                                options={COACH_STYLES}
+                                options={COACH_STYLES.map(s => ({ label: s.label, value: s.label }))}
                                 className="w-full"
                                 theme={currentTheme}
                             />

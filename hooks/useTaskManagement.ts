@@ -51,7 +51,7 @@ export const useTaskManagement = ({
 
         // 触发 AI 反馈（如果需要）
         if (!skipFeedback && triggerAIFeedback) {
-            triggerAIFeedback(`我刚刚手动添加了一个新待办任务：${title}`);
+            triggerAIFeedback(`我刚刚添加了一个新待办任务：${title}`);
         }
     }, [setState, triggerAIFeedback]);
 

@@ -54,12 +54,12 @@ export const Select: React.FC<SelectProps> = ({
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className={`w-full flex items-center justify-between bg-white border rounded-xl px-4 py-2.5 text-sm transition-all shadow-sm ${isOpen
-                        ? `border-${theme.primary}-500 ring-2 ring-${theme.primary}-100`
-                        : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
+                    ? `border-${theme.primary}-500 ring-2 ring-${theme.primary}-100`
+                    : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
                     }`}
             >
                 <span className={`truncate ${!value ? 'text-slate-400' : 'text-slate-700 font-medium'}`}>
-                    {value || placeholder}
+                    {options.find(opt => opt.value === value)?.label || placeholder}
                 </span>
                 <ChevronDown size={18} className={`text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -70,19 +70,19 @@ export const Select: React.FC<SelectProps> = ({
                     className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 max-h-64 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200"
                 >
                     {options.map((option) => {
-                        const isSelected = value === option.label;
+                        const isSelected = value === option.value;
                         return (
                             <button
-                                key={option.label}
+                                key={option.value}
                                 type="button"
                                 data-selected={isSelected}
                                 onClick={() => {
-                                    onChange(option.label);
+                                    onChange(option.value);
                                     setIsOpen(false);
                                 }}
                                 className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors ${isSelected
-                                        ? `bg-${theme.primary}-500 text-white font-medium`
-                                        : 'text-slate-700 hover:bg-slate-50'
+                                    ? `bg-${theme.primary}-500 text-white font-medium`
+                                    : 'text-slate-700 hover:bg-slate-50'
                                     }`}
                             >
                                 <span className="truncate">{option.label}</span>
