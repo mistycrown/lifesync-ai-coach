@@ -188,6 +188,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     />
                                 </div>
                             </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">关于你 (User Context)</label>
+                                <textarea
+                                    value={localSettings.coach.userContext || ''}
+                                    onChange={(e) => setLocalSettings(prev => ({ ...prev, coach: { ...prev.coach, userContext: e.target.value } }))}
+                                    rows={3}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
+                                    placeholder="告诉教练关于你的职业、目标、偏好等信息，以便它更好地为你服务..."
+                                />
+                            </div>
                         </div>
 
                         {/* Persona Style */}

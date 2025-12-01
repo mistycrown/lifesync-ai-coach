@@ -153,6 +153,7 @@ const App: React.FC = () => {
     const [isResizing, setIsResizing] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isSettingsSaved, setIsSettingsSaved] = useState(false);
     const [settingsTab, setSettingsTab] = useState<'coach' | 'theme' | 'data'>('coach');
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -711,7 +712,11 @@ ${JSON.stringify(result.toolCalls, null, 2)}
     // 更新 Ref，以便 triggerAIFeedback 可以调用最新的 handleSendMessage
     handleSendMessageRef.current = handleSendMessage;
 
-
+    const handleSaveSettings = () => {
+        saveSettings();
+        setIsSettingsSaved(true);
+        setTimeout(() => setIsSettingsSaved(false), 2000);
+    };
 
     const contextValue: AppContextType = {
         state,
@@ -902,10 +907,11 @@ ${JSON.stringify(result.toolCalls, null, 2)}
                                 </h2>
                                 <div className="flex items-center gap-2">
                                     <button
-                                        onClick={saveSettings}
-                                        className={`px-4 py-2 bg-${currentTheme.primary}-600 text-white rounded-lg hover:bg-${currentTheme.primary}-700 transition-colors text-sm font-medium flex items-center gap-2 shadow-sm`}
+                                        onClick={handleSaveSettings}
+                                        className={`px-4 py-2 ${isSettingsSaved ? 'bg-emerald-600 hover:bg-emerald-700' : `bg-${currentTheme.primary}-600 hover:bg-${currentTheme.primary}-700`} text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2 shadow-sm`}
                                     >
-                                        <Save size={16} /> 保存
+                                        {isSettingsSaved ? <Check size={16} /> : <Save size={16} />}
+                                        {isSettingsSaved ? "已保存" : "保存"}
                                     </button>
                                     <button onClick={() => setIsSettingsOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors" title="关闭">
                                         <X size={24} className="text-slate-500" />

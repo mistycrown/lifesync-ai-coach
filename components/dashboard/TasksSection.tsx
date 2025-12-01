@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, memo } from 'react';
 import { ListTodo, CheckCircle, Circle, Flag, Clock, Trash2, Plus, Sun, Moon, Check, Play } from 'lucide-react';
 import { Task, Habit, ThemeConfig, Goal, Session } from '../../types';
+import { Select } from '../Select';
 
 interface TaskItemProps {
     task: Task;
@@ -73,7 +74,7 @@ interface TasksSectionProps {
     activeSession: Session | undefined;
     onToggleTask: (id: string) => void;
     onDeleteTask: (id: string) => void;
-    onAddTask: (title: string) => void;
+    onAddTask: (title: string, goalId?: string) => void;
     onStartSession: (label: string, taskId?: string) => void;
     onAddHabit: (title: string) => void;
     onToggleCheckIn: (habitId: string) => void;
@@ -99,7 +100,13 @@ export const TasksSection: React.FC<TasksSectionProps> = memo(({
 }) => {
     const [taskViewMode, setTaskViewMode] = useState<'tasks' | 'checkins'>('tasks');
     const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [selectedGoalId, setSelectedGoalId] = useState<string>('');
     const [newHabitTitle, setNewHabitTitle] = useState('');
+
+    const goalOptions = useMemo(() => [
+        { label: '无关联目标', value: '' },
+        ...goals.filter(g => !g.completed).map(g => ({ label: g.title, value: g.id }))
+    ], [goals]);
 
     // SORTING LOGIC: Uncompleted first (Newest to Oldest), then Completed
     const sortedTasks = useMemo(() => [...tasks].sort((a, b) => {
@@ -112,10 +119,11 @@ export const TasksSection: React.FC<TasksSectionProps> = memo(({
     const handleAddTaskSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
         if (newTaskTitle.trim()) {
-            onAddTask(newTaskTitle);
+            onAddTask(newTaskTitle, selectedGoalId || undefined);
             setNewTaskTitle('');
+            setSelectedGoalId('');
         }
-    }, [newTaskTitle, onAddTask]);
+    }, [newTaskTitle, selectedGoalId, onAddTask]);
 
     const handleAddHabitSubmit = useCallback((e: React.FormEvent) => {
         e.preventDefault();
@@ -177,17 +185,27 @@ export const TasksSection: React.FC<TasksSectionProps> = memo(({
                             );
                         })}
                     </div>
-                    <form onSubmit={handleAddTaskSubmit} className="mt-4 flex gap-2">
-                        <input
-                            type="text"
-                            value={newTaskTitle}
-                            onChange={(e) => setNewTaskTitle(e.target.value)}
-                            placeholder="添加新任务..."
-                            className={`flex-1 bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
+                    <form onSubmit={handleAddTaskSubmit} className="mt-4 flex flex-col gap-2">
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={newTaskTitle}
+                                onChange={(e) => setNewTaskTitle(e.target.value)}
+                                placeholder="添加新任务..."
+                                className={`flex-1 bg-slate-50 text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-${theme.primary}-500 focus:bg-white transition-colors`}
+                            />
+                            <button type="submit" className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors">
+                                <Plus size={20} />
+                            </button>
+                        </div>
+                        <Select
+                            value={selectedGoalId}
+                            onChange={setSelectedGoalId}
+                            options={goalOptions}
+                            placeholder="关联目标 (可选)"
+                            className="w-full"
+                            theme={theme}
                         />
-                        <button type="submit" className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors">
-                            <Plus size={20} />
-                        </button>
                     </form>
                 </>
             ) : (

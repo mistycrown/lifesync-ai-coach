@@ -120,12 +120,13 @@ export const useHabitManagement = ({
 
             // 仅实时打卡（无 date 参数）时触发 AI 反馈
             if (!date && triggerAIFeedback) {
+                const nowTime = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
                 if (label.includes('早安')) {
-                    triggerAIFeedback(`早安打卡！${label}。请给我今天的早安问候和鼓励。`);
+                    triggerAIFeedback(`早安打卡！${label}。现在时间是 ${nowTime}。请给我今天的早安问候和鼓励。`);
                 } else if (label.includes('晚安')) {
-                    triggerAIFeedback(`晚安打卡！${label}。请给我今天的晚安问候和总结。`);
+                    triggerAIFeedback(`晚安打卡！${label}。现在时间是 ${nowTime}。请给我今天的晚安问候和总结。`);
                 } else {
-                    triggerAIFeedback(`我刚刚打卡了：${label}。`);
+                    triggerAIFeedback(`我刚刚打卡了：${label}。现在时间是 ${nowTime}。`);
                 }
             }
         }
@@ -157,10 +158,11 @@ export const useHabitManagement = ({
 
         // 触发 AI 反馈
         if (triggerAIFeedback) {
+            const nowTime = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
             if (type === 'morning' || type === 'night') {
-                triggerAIFeedback(`${label}。`);
+                triggerAIFeedback(`${label}。现在时间是 ${nowTime}。`);
             } else {
-                triggerAIFeedback(`我刚刚打卡了：${label}。`);
+                triggerAIFeedback(`我刚刚打卡了：${label}。现在时间是 ${nowTime}。`);
             }
         }
     }, [setState, triggerAIFeedback]);

@@ -78,10 +78,13 @@ export const useSessionManagement = ({
 
         const endTime = new Date();
         let sessionLabel = "";
+        let durationSeconds = 0;
 
         const currentSession = state.sessions.find(s => s.id === state.activeSessionId);
         if (currentSession) {
             sessionLabel = currentSession.label;
+            const startTime = new Date(currentSession.startTime);
+            durationSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
         }
 
         setState(prev => {
@@ -90,13 +93,11 @@ export const useSessionManagement = ({
 
             const updatedSessions = [...prev.sessions];
             const session = updatedSessions[sessionIndex];
-            const startTime = new Date(session.startTime);
-            const duration = (endTime.getTime() - startTime.getTime()) / 1000;
 
             updatedSessions[sessionIndex] = {
                 ...session,
                 endTime: endTime.toISOString(),
-                durationSeconds: duration
+                durationSeconds: durationSeconds
             };
 
             return {
@@ -108,7 +109,8 @@ export const useSessionManagement = ({
 
         // 触发 AI 反馈
         if (sessionLabel && triggerAIFeedback) {
-            triggerAIFeedback(`我刚刚结束了专注工作：${sessionLabel}`);
+            const durationMinutes = Math.floor(durationSeconds / 60);
+            triggerAIFeedback(`我刚刚结束了专注工作：${sessionLabel}，持续了 ${durationMinutes} 分钟。`);
         }
     }, [state.activeSessionId, state.sessions, setState, triggerAIFeedback]);
 
