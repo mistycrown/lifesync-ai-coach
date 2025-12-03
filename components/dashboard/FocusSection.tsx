@@ -8,6 +8,7 @@ interface FocusSectionProps {
     onStartSession: (label: string) => void;
     onStopSession: () => void;
     onRenameSession: (id: string, newLabel: string) => void;
+    sessions: Session[];
 }
 
 export const FocusSection: React.FC<FocusSectionProps> = ({
@@ -15,12 +16,28 @@ export const FocusSection: React.FC<FocusSectionProps> = ({
     theme,
     onStartSession,
     onStopSession,
-    onRenameSession
+    onRenameSession,
+    sessions
 }) => {
     const [elapsed, setElapsed] = useState(0);
     const [sessionLabel, setSessionLabel] = useState('');
     const [activeLabelEdit, setActiveLabelEdit] = useState('');
     const [isEditingActiveLabel, setIsEditingActiveLabel] = useState(false);
+
+    // Calculate today's total focus time
+    const todayTotalSeconds = React.useMemo(() => {
+        const todayStr = new Date().toDateString();
+        return sessions
+            .filter(s => new Date(s.startTime).toDateString() === todayStr && s.endTime) // Only count completed sessions
+            .reduce((acc, s) => acc + s.durationSeconds, 0);
+    }, [sessions]);
+
+    const formatDuration = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        if (h > 0) return `${h}小时${m}分钟`;
+        return `${m}分钟`;
+    };
 
     useEffect(() => {
         let interval: ReturnType<typeof setInterval>;
@@ -88,7 +105,11 @@ export const FocusSection: React.FC<FocusSectionProps> = ({
                                 <Edit2 size={12} className="text-slate-300 transition-opacity" />
                             </div>
                         )
-                    ) : '准备好开始新的工作了吗？'}
+                    ) : (
+                        todayTotalSeconds > 0
+                            ? `今天已专注 ${formatDuration(todayTotalSeconds)}`
+                            : '准备好开始新的工作了吗？'
+                    )}
                 </div>
             </div>
 

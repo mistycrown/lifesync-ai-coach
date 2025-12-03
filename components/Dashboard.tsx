@@ -38,6 +38,7 @@ export const Dashboard: React.FC = () => {
           onStartSession={actions.startSession}
           onStopSession={actions.stopSession}
           onRenameSession={actions.renameSession}
+          sessions={sessions}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

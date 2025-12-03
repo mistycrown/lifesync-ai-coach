@@ -52,6 +52,7 @@ export const MobileLayout: React.FC = () => {
                             onStartSession={actions.startSession}
                             onStopSession={actions.stopSession}
                             onRenameSession={actions.renameSession}
+                            sessions={state.sessions}
                         />
                         <TasksSection
                             tasks={state.tasks}
