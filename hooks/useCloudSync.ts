@@ -49,12 +49,10 @@ export const useCloudSync = ({
     const [isTestingStorage, setIsTestingStorage] = useState(false);
     const [storageTestResult, setStorageTestResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-    // 追踪上次同步状态，优化同步频率
-    const lastSyncRef = useRef<{
-        chatCount: number;
-        reportCount: number;
-        currentChatId: string | null;
-    }>({ chatCount: 0, reportCount: 0, currentChatId: null });
+    // 追踪上次同步时间（用于冲突检测）
+    const lastSyncTimeRef = useRef<string | null>(null);
+
+
 
     // 追踪是否已执行初始拉取
     const hasInitialFetchRun = useRef(false);
@@ -90,18 +88,21 @@ export const useCloudSync = ({
             return;
         }
 
-        // 判断是否需要同步归档数据（较大）
-        const currentChatCount = state.chatSessions.length;
-        const currentReportCount = state.reports.length;
-        const currentChatId = state.currentChatId;
-
-        const hasArchiveChanged =
-            currentChatCount !== lastSyncRef.current.chatCount ||
-            currentReportCount !== lastSyncRef.current.reportCount ||
-            currentChatId !== lastSyncRef.current.currentChatId;
-
-        // 自动同步且仅核心数据变化时，跳过归档上传
-        const onlyCore = isAuto && !hasArchiveChanged;
+        // 冲突检测：检查云端是否有更新的版本
+        if (lastSyncTimeRef.current) {
+            const latestRemoteTime = await StorageService.getLatestTimestamp(config);
+            if (latestRemoteTime && new Date(latestRemoteTime) > new Date(lastSyncTimeRef.current)) {
+                const msg = "云端数据已更新，为防止覆盖，已暂停自动同步。请刷新页面拉取最新数据。";
+                console.warn(msg);
+                if (!isAuto) {
+                    setSyncMessage({ type: 'error', text: msg });
+                } else {
+                    // 自动同步失败时，也提示一下，但不要太打扰
+                    setSyncMessage({ type: 'info', text: "云端有新数据，请刷新同步" });
+                }
+                return;
+            }
+        }
 
         // 上传时嵌入最新的存储配置
         const stateToUpload = { ...state, storageConfig: config };
@@ -110,24 +111,21 @@ export const useCloudSync = ({
             setIsSyncing(true);
             setSyncMessage({
                 type: 'info',
-                text: onlyCore ? "正在同步核心数据..." : "正在全量同步..."
+                text: "正在同步..."
             });
         }
 
         try {
-            await StorageService.uploadData(config, stateToUpload, onlyCore);
+            await StorageService.uploadData(config, stateToUpload);
 
-            // 更新同步记录
-            lastSyncRef.current = {
-                chatCount: currentChatCount,
-                reportCount: currentReportCount,
-                currentChatId: currentChatId
-            };
+            // 更新本地最后同步时间
+            lastSyncTimeRef.current = new Date().toISOString();
 
             if (!isAuto) {
                 setSyncMessage({ type: 'success', text: "上传成功！数据已安全存储。" });
             } else {
-                console.log(`Auto-sync success (${onlyCore ? 'Core Only' : 'Full'})`);
+                console.log(`Auto-sync success`);
+                setSyncMessage(null); // 清除之前的错误/提示
             }
         } catch (error: any) {
             console.error("Sync failed:", error);
@@ -143,8 +141,10 @@ export const useCloudSync = ({
 
     /**
      * 从云端同步
+     * @param isAuto 是否为自动同步
+     * @param shouldApply 是否自动应用数据（跳过确认）
      */
-    const syncFromCloud = useCallback(async (isAuto = false) => {
+    const syncFromCloud = useCallback(async (isAuto = false, shouldApply = false) => {
         // 自动同步使用应用状态中的配置
         const config = isAuto ? state.storageConfig : localSettings.storage;
 
@@ -161,12 +161,34 @@ export const useCloudSync = ({
         }
 
         try {
+            // 获取最新时间戳
+            const latestTimestamp = await StorageService.getLatestTimestamp(config);
             const cloudState = await StorageService.downloadData(config);
 
             if (cloudState) {
-                setPendingCloudData(cloudState);
-                setRestoreSource('cloud');
-                setSyncMessage(null); // 清除加载消息，显示确认卡片
+                if (shouldApply) {
+                    // 自动应用
+                    console.log('Auto-applying cloud data...');
+                    setState(cloudState);
+                    setLocalSettings({
+                        coach: cloudState.coachSettings,
+                        storage: cloudState.storageConfig
+                    });
+                    if (latestTimestamp) {
+                        lastSyncTimeRef.current = latestTimestamp;
+                    }
+                    setSyncMessage({ type: 'success', text: "已自动同步最新数据" });
+                    // 3秒后清除成功消息
+                    setTimeout(() => setSyncMessage(null), 3000);
+                } else {
+                    // 手动确认流程
+                    setPendingCloudData(cloudState);
+                    setRestoreSource('cloud');
+                    setSyncMessage(null); // 清除加载消息，显示确认卡片
+                    if (latestTimestamp) {
+                        lastSyncTimeRef.current = latestTimestamp; // 暂存，确认后生效? 其实这里更新也没事
+                    }
+                }
             } else {
                 if (!isAuto) {
                     setSyncMessage({ type: 'error', text: "云端没有找到备份数据" });
@@ -180,7 +202,7 @@ export const useCloudSync = ({
         } finally {
             setIsSyncing(false);
         }
-    }, [state.storageConfig, localSettings.storage]);
+    }, [state.storageConfig, localSettings.storage, setState, setLocalSettings]);
 
     /**
      * 确认恢复数据
@@ -232,9 +254,26 @@ export const useCloudSync = ({
         if (config.provider === 'supabase' && config.supabaseUrl && config.supabaseKey) {
             console.log("Auto-fetching from cloud on startup...");
             hasInitialFetchRun.current = true;
-            syncFromCloud(true);
+            // 启动时自动拉取并应用
+            syncFromCloud(true, true);
         }
     }, []); // Empty dependency array ensures this runs only once on mount
+
+    // 轮询检查云端更新 (每60秒)
+    useEffect(() => {
+        const config = state.storageConfig;
+        if (config.provider !== 'supabase' || !config.supabaseUrl || !config.supabaseKey) return;
+
+        const interval = setInterval(async () => {
+            const latestRemoteTime = await StorageService.getLatestTimestamp(config);
+            if (latestRemoteTime && lastSyncTimeRef.current && new Date(latestRemoteTime) > new Date(lastSyncTimeRef.current)) {
+                console.log("Detected remote change via polling");
+                setSyncMessage({ type: 'info', text: "云端数据有更新，建议刷新页面" });
+            }
+        }, 60000);
+
+        return () => clearInterval(interval);
+    }, [state.storageConfig]);
 
     return {
         isSyncing,

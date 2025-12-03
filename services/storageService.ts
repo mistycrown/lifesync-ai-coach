@@ -43,58 +43,33 @@ export class StorageService {
             throw new Error("Supabase 未配置");
         }
 
-        // Split data into Core (lightweight + active chat) and Archive (heavyweight history)
-        const { chatSessions, reports, ...rest } = data;
-
-        // Find active session to keep in Core
-        const activeSession = data.currentChatId ? chatSessions.find(s => s.id === data.currentChatId) : null;
-        const inactiveSessions = data.currentChatId ? chatSessions.filter(s => s.id !== data.currentChatId) : chatSessions;
-
-        const coreData = {
-            ...rest,
-            activeChatSession: activeSession || null
+        // Always upload full data to the main ID
+        const payload = {
+            id: BACKUP_ID_LEGACY,
+            data: data,
+            updated_at: new Date().toISOString()
         };
 
-        const archiveData = {
-            chatSessions: inactiveSessions,
-            reports
-        };
+        const url = `${config.supabaseUrl.replace(/\/$/, '')}/rest/v1/${SUPABASE_TABLE}`;
+        console.log(`Uploading full data (${BACKUP_ID_LEGACY})...`);
 
-        // Helper to upload a chunk
-        const uploadChunk = async (id: string, chunkData: any) => {
-            const payload = {
-                id: id,
-                data: chunkData,
-                updated_at: new Date().toISOString()
-            };
-            const url = `${config.supabaseUrl!.replace(/\/$/, '')}/rest/v1/${SUPABASE_TABLE}`;
-            console.log(`Uploading chunk ${id}...`);
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'apikey': config.supabaseKey!,
-                    'Authorization': `Bearer ${config.supabaseKey}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'resolution=merge-duplicates'
-                },
-                body: JSON.stringify(payload)
-            });
-            if (!response.ok) {
-                const text = await response.text();
-                console.error(`Upload failed for ${id}:`, text);
-                throw new Error(`上传失败 (${id}): ${text}`);
-            }
-            console.log(`Upload success for ${id}`);
-        };
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'apikey': config.supabaseKey,
+                'Authorization': `Bearer ${config.supabaseKey}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify(payload)
+        });
 
-        const promises = [uploadChunk(BACKUP_ID_CORE, coreData)];
-
-        // Only upload archive if not skipping it
-        if (!onlyCore) {
-            promises.push(uploadChunk(BACKUP_ID_ARCHIVE, archiveData));
+        if (!response.ok) {
+            const text = await response.text();
+            console.error(`Upload failed:`, text);
+            throw new Error(`上传失败: ${text}`);
         }
-
-        await Promise.all(promises);
+        console.log(`Upload success`);
     }
 
     static async downloadData(config: StorageConfig): Promise<AppState | null> {
@@ -102,61 +77,53 @@ export class StorageService {
             throw new Error("Supabase 未配置");
         }
 
-        // Helper to download a chunk
-        const downloadChunk = async (id: string) => {
-            // Add order=updated_at.desc to ensure we get the latest if duplicates exist
-            const url = `${config.supabaseUrl!.replace(/\/$/, '')}/rest/v1/${SUPABASE_TABLE}?id=eq.${id}&select=data&order=updated_at.desc&limit=1`;
-            console.log(`Downloading chunk ${id}...`);
+        const url = `${config.supabaseUrl.replace(/\/$/, '')}/rest/v1/${SUPABASE_TABLE}?id=eq.${BACKUP_ID_LEGACY}&select=data&order=updated_at.desc&limit=1`;
+        console.log(`Downloading full data (${BACKUP_ID_LEGACY})...`);
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'apikey': config.supabaseKey,
+                'Authorization': `Bearer ${config.supabaseKey}`,
+            },
+            cache: 'no-store'
+        });
+
+        if (!response.ok) {
+            console.error(`Download failed:`, response.status);
+            return null;
+        }
+
+        const json = await response.json();
+        console.log(`Downloaded data:`, json && json.length > 0 ? 'Found' : 'Not Found');
+        return (json && json.length > 0) ? json[0].data : null;
+    }
+
+    static async getLatestTimestamp(config: StorageConfig): Promise<string | null> {
+        if (config.provider !== 'supabase' || !config.supabaseUrl || !config.supabaseKey) {
+            return null;
+        }
+
+        const url = `${config.supabaseUrl.replace(/\/$/, '')}/rest/v1/${SUPABASE_TABLE}?id=eq.${BACKUP_ID_LEGACY}&select=updated_at&limit=1`;
+        try {
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
-                    'apikey': config.supabaseKey!,
+                    'apikey': config.supabaseKey,
                     'Authorization': `Bearer ${config.supabaseKey}`,
                 },
                 cache: 'no-store'
             });
-            if (!response.ok) {
-                console.error(`Download failed for ${id}:`, response.status);
-                return null;
-            }
+
+            if (!response.ok) return null;
+
             const json = await response.json();
-            console.log(`Downloaded ${id}:`, json && json.length > 0 ? 'Found' : 'Not Found');
-            return (json && json.length > 0) ? json[0].data : null;
-        };
-
-        // Try to fetch Core and Archive
-        const [coreData, archiveData] = await Promise.all([
-            downloadChunk(BACKUP_ID_CORE),
-            downloadChunk(BACKUP_ID_ARCHIVE)
-        ]);
-
-        if (coreData) {
-            console.log('Found Core Data, merging...');
-            // Reconstruct full chat sessions list
-            let allSessions = archiveData?.chatSessions || [];
-            if (coreData.activeChatSession) {
-                // Add active session back. 
-                // We put it at the beginning as it's likely the most recent, 
-                // but App state usually manages sort order. 
-                // To be safe, we just add it.
-                allSessions = [coreData.activeChatSession, ...allSessions.filter((s: any) => s.id !== coreData.activeChatSession.id)];
+            if (json && json.length > 0) {
+                return json[0].updated_at;
             }
-
-            return {
-                ...coreData,
-                chatSessions: allSessions,
-                reports: archiveData?.reports || []
-            } as AppState;
+        } catch (error) {
+            console.error("Failed to check timestamp:", error);
         }
-
-        console.log('Core Data not found, trying legacy...');
-        // Fallback: Try legacy single-file backup
-        const legacyData = await downloadChunk(BACKUP_ID_LEGACY);
-        if (legacyData) {
-            console.log('Found Legacy Data');
-            return legacyData as AppState;
-        }
-
         return null;
     }
 }
