@@ -44,7 +44,14 @@ export const useSettings = ({
         coach: CoachSettings;
         storage: StorageConfig;
     }>({
-        coach: state.coachSettings,
+        coach: {
+            ...state.coachSettings,
+            // Migration: If style is Custom and userCustomPrompt is missing, use customInstruction
+            userCustomPrompt: state.coachSettings.userCustomPrompt ??
+                (state.coachSettings.style === '自定义 (完全自由发挥)'
+                    ? state.coachSettings.customInstruction
+                    : '')
+        },
         storage: state.storageConfig
     });
 

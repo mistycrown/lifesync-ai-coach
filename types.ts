@@ -75,6 +75,7 @@ export interface CoachSettings {
   style: string; // The selected preset label or "Custom"
   userContext: string; // Background info about the user
   customInstruction?: string; // The actual system prompt (populated by preset or custom)
+  userCustomPrompt?: string; // Stores the user's custom prompt persistently
   customReportInstruction?: string; // Custom prompt for generating daily reports
   modelConfig: ModelConfig; // New: Model Configuration
   debugMode?: boolean; // Show full prompt in chat for debugging

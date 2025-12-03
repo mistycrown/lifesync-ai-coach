@@ -56,6 +56,9 @@ export const useCloudSync = ({
         currentChatId: string | null;
     }>({ chatCount: 0, reportCount: 0, currentChatId: null });
 
+    // 追踪是否已执行初始拉取
+    const hasInitialFetchRun = useRef(false);
+
     /**
      * 测试云端存储连接
      */
@@ -141,16 +144,21 @@ export const useCloudSync = ({
     /**
      * 从云端同步
      */
-    const syncFromCloud = useCallback(async () => {
-        const config = localSettings.storage;
+    const syncFromCloud = useCallback(async (isAuto = false) => {
+        // 自动同步使用应用状态中的配置
+        const config = isAuto ? state.storageConfig : localSettings.storage;
 
         if (!config.supabaseUrl || !config.supabaseKey) {
-            setSyncMessage({ type: 'error', text: "请先配置并填写 Supabase URL 和 Key" });
+            if (!isAuto) {
+                setSyncMessage({ type: 'error', text: "请先配置并填写 Supabase URL 和 Key" });
+            }
             return;
         }
 
         setIsSyncing(true);
-        setSyncMessage({ type: 'info', text: "正在从云端下载..." });
+        if (!isAuto) {
+            setSyncMessage({ type: 'info', text: "正在从云端下载..." });
+        }
 
         try {
             const cloudState = await StorageService.downloadData(config);
@@ -160,14 +168,19 @@ export const useCloudSync = ({
                 setRestoreSource('cloud');
                 setSyncMessage(null); // 清除加载消息，显示确认卡片
             } else {
-                setSyncMessage({ type: 'error', text: "云端没有找到备份数据" });
+                if (!isAuto) {
+                    setSyncMessage({ type: 'error', text: "云端没有找到备份数据" });
+                }
             }
         } catch (error: any) {
-            setSyncMessage({ type: 'error', text: "下载失败: " + error.message });
+            console.error("Download failed:", error);
+            if (!isAuto) {
+                setSyncMessage({ type: 'error', text: "下载失败: " + error.message });
+            }
         } finally {
             setIsSyncing(false);
         }
-    }, [localSettings.storage]);
+    }, [state.storageConfig, localSettings.storage]);
 
     /**
      * 确认恢复数据
@@ -194,7 +207,7 @@ export const useCloudSync = ({
         setSyncMessage(null);
     }, []);
 
-    // 自动同步 Effect
+    // 自动同步 Effect (Upload)
     useEffect(() => {
         const config = state.storageConfig;
 
@@ -210,6 +223,18 @@ export const useCloudSync = ({
 
         return () => clearTimeout(timer);
     }, [state, syncToCloud]);
+
+    // 初始加载自动拉取 Effect (Download)
+    useEffect(() => {
+        if (hasInitialFetchRun.current) return;
+
+        const config = state.storageConfig;
+        if (config.provider === 'supabase' && config.supabaseUrl && config.supabaseKey) {
+            console.log("Auto-fetching from cloud on startup...");
+            hasInitialFetchRun.current = true;
+            syncFromCloud(true);
+        }
+    }, []); // Empty dependency array ensures this runs only once on mount
 
     return {
         isSyncing,

@@ -16,7 +16,8 @@
     "react-dom": "^19.2.0",
     "react-markdown": "9",
     "react-virtualized-auto-sizer": "^1.0.26",
-    "react-window": "^2.2.3"
+    "react-window": "^2.2.3",
+    "recharts": "^3.5.1"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.21",

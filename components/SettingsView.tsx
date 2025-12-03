@@ -95,14 +95,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const handleStyleChange = (selectedStyle: string) => {
         const preset = COACH_STYLES.find(s => s.label === selectedStyle);
 
-        setLocalSettings(prev => ({
-            ...prev,
-            coach: {
-                ...prev.coach,
-                style: selectedStyle,
-                customInstruction: preset ? preset.value : prev.coach.customInstruction
+        setLocalSettings(prev => {
+            let newInstruction = prev.coach.customInstruction;
+
+            if (preset) {
+                // If switching to "Custom" (empty value), restore the saved user prompt
+                if (preset.value === "") {
+                    newInstruction = prev.coach.userCustomPrompt || "";
+                } else {
+                    // Otherwise use the preset's value
+                    newInstruction = preset.value;
+                }
             }
-        }));
+
+            return {
+                ...prev,
+                coach: {
+                    ...prev.coach,
+                    style: selectedStyle,
+                    customInstruction: newInstruction
+                }
+            };
+        });
     };
 
     const handleProviderPreset = (provider: string) => {
@@ -216,7 +230,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 <label className="block text-sm font-medium text-slate-700 mb-1">人设指令 (System Prompt)</label>
                                 <textarea
                                     value={localSettings.coach.customInstruction}
-                                    onChange={(e) => setLocalSettings(prev => ({ ...prev, coach: { ...prev.coach, customInstruction: e.target.value } }))}
+                                    onChange={(e) => setLocalSettings(prev => ({
+                                        ...prev,
+                                        coach: {
+                                            ...prev.coach,
+                                            customInstruction: e.target.value,
+                                            // Always save manual edits to userCustomPrompt
+                                            userCustomPrompt: e.target.value
+                                        }
+                                    }))}
                                     rows={4}
                                     className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
                                     placeholder="在这里微调教练的语气和行为模式..."

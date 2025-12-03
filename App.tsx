@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Settings, BarChart3, MessageSquare, X, Sparkles, FileText, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson, Search, Bug, PanelRightClose } from 'lucide-react';
+import { Settings, BarChart3, MessageSquare, X, Sparkles, FileText, User, Palette, Database, Download, Trash2, Save, Check, Server, Key, Link as LinkIcon, Box, PlugZap, Loader2, AlertCircle, Cloud, UploadCloud, DownloadCloud, HardDrive, Info, HelpCircle, FileJson, Search, Bug, PanelRightClose, Activity } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
 import { Dashboard } from './components/Dashboard';
 import { SettingsView } from './components/SettingsView';
 import { SearchModal } from './components/SearchModal';
+import { StatisticsModal } from './components/StatisticsModal';
 import { Select } from './components/Select';
 import { AppState, ChatMessage, Task, Goal, Session, DailyReport, CoachSettings, ThemeConfig, ModelConfig, StorageConfig, ChatSessionData, Habit, Vision } from './types';
 import { CoachService } from './services/geminiService';
@@ -152,7 +153,9 @@ const App: React.FC = () => {
     const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH);
     const [isResizing, setIsResizing] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isStatisticsOpen, setIsStatisticsOpen] = useState(false);
     const [isSettingsSaved, setIsSettingsSaved] = useState(false);
     const [settingsTab, setSettingsTab] = useState<'coach' | 'theme' | 'data'>('coach');
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -810,6 +813,13 @@ ${JSON.stringify(result.toolCalls, null, 2)}
                                 <span className="hidden sm:inline text-sm font-medium">搜索</span>
                             </button>
                             <button
+                                onClick={() => setIsStatisticsOpen(true)}
+                                className={`p-2 text-slate-500 hover:text-${currentTheme.primary}-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-2`}
+                            >
+                                <Activity size={20} />
+                                <span className="hidden sm:inline text-sm font-medium">统计</span>
+                            </button>
+                            <button
                                 onClick={() => setIsSettingsOpen(true)}
                                 className={`p-2 text-slate-500 hover:text-${currentTheme.primary}-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-2`}
                             >
@@ -896,6 +906,20 @@ ${JSON.stringify(result.toolCalls, null, 2)}
                         if (type === 'habit') setViewingHabitId(id);
                     }}
                 />
+
+                {/* Statistics Modal */}
+                {isStatisticsOpen && (
+                    <StatisticsModal
+                        isOpen={isStatisticsOpen}
+                        onClose={() => setIsStatisticsOpen(false)}
+                        sessions={state.sessions}
+                        tasks={state.tasks}
+                        goals={state.goals}
+                        visions={state.visions}
+                        habits={state.habits}
+                        theme={currentTheme}
+                    />
+                )}
 
                 {/* Settings Modal */}
                 {isSettingsOpen && (
