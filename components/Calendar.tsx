@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 
+interface DateModifiers {
+    [date: string]: {
+        hasSession?: boolean;
+        hasReport?: boolean;
+    }
+}
+
 interface CalendarProps {
     value: string; // YYYY-MM-DD or YYYY-MM-DDTHH:mm
     onChange: (date: string) => void;
@@ -9,9 +16,10 @@ interface CalendarProps {
     placement?: 'top' | 'bottom';
     align?: 'left' | 'right';
     showTime?: boolean;
+    modifiers?: DateModifiers;
 }
 
-export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, theme, variant = 'responsive', placement = 'bottom', align = 'left', showTime = false }) => {
+export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, theme, variant = 'responsive', placement = 'bottom', align = 'left', showTime = false, modifiers }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [time, setTime] = useState('00:00');
@@ -133,18 +141,28 @@ export const CalendarPopover: React.FC<CalendarProps> = ({ value, onChange, them
                                 today.getMonth() === currentMonth.getMonth() &&
                                 today.getDate() === day;
 
+                            const modifier = modifiers?.[dateStr];
+
                             return (
                                 <button
                                     type="button"
                                     key={day}
                                     onClick={() => handleDateClick(day)}
                                     className={`
-                    h-8 w-8 rounded-full text-sm flex items-center justify-center transition-colors
+                    h-9 w-9 rounded-lg text-sm flex flex-col items-center justify-center transition-all relative
                     ${isSelected ? `bg-${theme.primary}-500 text-white shadow-md shadow-${theme.primary}-200` : 'hover:bg-slate-100 text-slate-700'}
                     ${isToday && !isSelected ? `border border-${theme.primary}-200 text-${theme.primary}-600 font-bold` : ''}
                   `}
                                 >
-                                    {day}
+                                    <span className="leading-none">{day}</span>
+                                    <div className="flex gap-0.5 mt-0.5 h-1.5 items-center">
+                                        {modifier?.hasSession && (
+                                            <div className={`w-1 h-1 rounded-full border ${isSelected ? 'border-white' : `border-${theme.primary}-400`}`} />
+                                        )}
+                                        {modifier?.hasReport && (
+                                            <div className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : `bg-${theme.primary}-500`}`} />
+                                        )}
+                                    </div>
                                 </button>
                             );
                         })}

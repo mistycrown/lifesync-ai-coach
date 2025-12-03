@@ -127,7 +127,7 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
         if (!draggingSessionId || !dragType || !tempSessionTimes || !containerRef.current) return;
 
         const deltaY = e.clientY - dragY;
-        const pixelsPerMinute = 1000 / 1440;
+        const pixelsPerMinute = 1080 / 1440;
         const minutesDelta = deltaY / pixelsPerMinute;
         const snappedDelta = Math.round(minutesDelta / 5) * 5;
 
@@ -176,7 +176,7 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
                 if (!draggingSessionId || !dragType || !tempSessionTimes) return;
 
                 const deltaY = e.clientY - dragY;
-                const pixelsPerMinute = 1000 / 1440;
+                const pixelsPerMinute = 1080 / 1440;
                 const minutesDelta = deltaY / pixelsPerMinute;
                 const snappedDelta = Math.round(minutesDelta / 5) * 5;
 
@@ -223,10 +223,38 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
     }, [draggingSessionId, dragY, dragType, tempSessionTimes, onSessionUpdate]);
 
 
+    // Scroll to 8 AM on mount
+    useEffect(() => {
+        // 使用 setTimeout 确保 DOM 渲染完成，高度已生效
+        const timer = setTimeout(() => {
+            if (containerRef.current) {
+                // 8 AM = 8 * 45 = 360px (总高度 1080px)
+                containerRef.current.scrollTop = 360;
+            }
+        }, 200);
+        return () => clearTimeout(timer);
+    }, []);
+
     const hours = Array.from({ length: 24 }, (_, i) => i);
 
+    const [tooltip, setTooltip] = useState<{ x: number, y: number, content: string } | null>(null);
+
     return (
-        <div className="flex flex-col h-[600px] border border-slate-200 rounded-xl overflow-hidden bg-white select-none">
+        <div className="flex flex-col h-[800px] border border-slate-200 rounded-xl overflow-hidden bg-white select-none relative">
+            {/* Custom Tooltip */}
+            {tooltip && (
+                <div
+                    className="fixed z-50 px-3 py-2 bg-white/90 backdrop-blur-sm border border-slate-200 shadow-xl rounded-xl text-xs text-slate-700 pointer-events-none transition-opacity duration-200"
+                    style={{
+                        left: tooltip.x + 12,
+                        top: tooltip.y + 12,
+                        maxWidth: '200px'
+                    }}
+                >
+                    {tooltip.content}
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex border-b border-slate-200 bg-slate-50">
                 <div className="w-12 shrink-0 border-r border-slate-200"></div>
@@ -248,7 +276,7 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto relative custom-scrollbar" ref={containerRef}>
-                <div className="flex min-h-[1000px] relative">
+                <div className="flex min-h-[1080px] relative">
 
                     {/* Time Axis */}
                     <div className="w-12 shrink-0 border-r border-slate-200 bg-slate-50 text-xs text-slate-400 flex flex-col relative">
@@ -290,12 +318,22 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
                                             key={session.id}
                                             className={`absolute left-0.5 right-0.5 rounded px-1 py-0.5 text-[10px] overflow-hidden border shadow-sm hover:z-10 hover:shadow-md transition-all cursor-pointer group ${!colors.bg.startsWith('bg-[') ? `${colors.bg} ${colors.border} ${colors.text}` : ''}`}
                                             style={customStyle}
-                                            title={`${session.label} (${Math.floor(session.durationSeconds / 60)}m)`}
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 if (isDraggingRef.current) return;
                                                 onSessionClick(session);
                                             }}
+                                            onMouseEnter={(e) => {
+                                                setTooltip({
+                                                    x: e.clientX,
+                                                    y: e.clientY,
+                                                    content: `${session.label} (${Math.floor(session.durationSeconds / 60)}m)`
+                                                });
+                                            }}
+                                            onMouseMove={(e) => {
+                                                setTooltip(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null);
+                                            }}
+                                            onMouseLeave={() => setTooltip(null)}
                                         >
                                             {/* Drag Handles */}
                                             <div

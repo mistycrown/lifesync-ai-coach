@@ -125,17 +125,17 @@ export const GoalsSection: React.FC<GoalsSectionProps> = ({
                                     <span className={`text-sm ${goal.completed ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
                                         {goal.title}
                                     </span>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                        <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
+                                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                        <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1 whitespace-nowrap">
                                             <Calendar size={8} /> {new Date(goal.deadline).toLocaleDateString()}
                                         </span>
                                         {goal.visionId && (
-                                            <span className="text-[10px] text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 flex items-center gap-1">
+                                            <span className="text-[10px] text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 flex items-center gap-1 whitespace-nowrap">
                                                 <Target size={8} />
                                                 {visions.find(v => v.id === goal.visionId)?.title || '未知愿景'}
                                             </span>
                                         )}
-                                        <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1">
+                                        <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 flex items-center gap-1 whitespace-nowrap">
                                             <Clock size={8} />
                                             {Math.floor(
                                                 sessions.filter(s => {

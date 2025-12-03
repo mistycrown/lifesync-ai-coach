@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { History, ChevronLeft, ChevronRight, FileText, Loader2, Save, Edit2, Trash2 } from 'lucide-react';
 import { Session, DailyReport, ThemeConfig, Task, Goal, Habit } from '../../types';
 import { CalendarPopover } from '../Calendar';
@@ -106,6 +106,32 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
 
     const isToday = new Date(logDate).toDateString() === new Date().toDateString();
 
+    // Calculate date modifiers for calendar
+    const calendarModifiers = useMemo(() => {
+        const mods: Record<string, { hasSession?: boolean; hasReport?: boolean }> = {};
+
+        sessions.forEach(s => {
+            if (!s.startTime) return;
+            // Use local date string to match calendar
+            const d = new Date(s.startTime);
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+            if (!mods[dateStr]) mods[dateStr] = {};
+            mods[dateStr].hasSession = true;
+        });
+
+        reports.forEach(r => {
+            if (!r.date) return;
+            const d = new Date(r.date);
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+            if (!mods[dateStr]) mods[dateStr] = {};
+            mods[dateStr].hasReport = true;
+        });
+
+        return mods;
+    }, [sessions, reports]);
+
     return (
         <div className="bg-white rounded-3xl p-6 shadow-float border border-white/50 col-span-1 lg:col-span-2">
             <div className="flex flex-col gap-4 mb-4">
@@ -121,7 +147,13 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
                             <ChevronLeft size={16} />
                         </button>
                         <div className="relative">
-                            <CalendarPopover value={logDate} onChange={setLogDate} theme={theme} variant="full" />
+                            <CalendarPopover
+                                value={logDate}
+                                onChange={setLogDate}
+                                theme={theme}
+                                variant="full"
+                                modifiers={calendarModifiers}
+                            />
                         </div>
                         <button
                             onClick={() => setLogDate(new Date().toISOString().split('T')[0])}
@@ -282,8 +314,18 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
                                 </div>
                                 <div className="flex-1">
                                     <div className="font-medium text-slate-700 text-sm">{session.label}</div>
-                                    <div className="text-xs text-slate-400 mt-0.5">
-                                        {duration} 分钟 {session.taskId && tasks.find(t => t.id === session.taskId) && <span className="bg-white border border-slate-200 px-1 rounded ml-1">{tasks.find(t => t.id === session.taskId)?.title}</span>}
+                                    <div className="text-xs text-slate-400 mt-0.5 flex items-center flex-wrap gap-1">
+                                        {duration} 分钟
+                                        {session.taskId && tasks.find(t => t.id === session.taskId) && (
+                                            <span className="bg-white border border-slate-200 px-1 rounded text-slate-500">
+                                                {tasks.find(t => t.id === session.taskId)?.title}
+                                            </span>
+                                        )}
+                                        {session.habitId && (
+                                            <span className={`bg-${theme.primary}-50 text-${theme.primary}-600 border border-${theme.primary}-100 px-1.5 rounded text-[10px] font-medium flex items-center gap-0.5`}>
+                                                ✨ 打卡
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                                 <button onClick={(e) => { e.stopPropagation(); onDeleteSession(session.id); }} className="p-2 text-slate-300 hover:text-red-500 transition-opacity">
