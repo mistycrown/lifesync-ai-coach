@@ -6,12 +6,24 @@ import { VisionList } from '../VisionList';
 import { Select } from '../Select';
 
 const MORANDI_COLORS = [
-    '#e8d3c0', // Warm Beige
-    '#d89c7a', // Warm Brown/Orange
-    '#d6c38b', // Warm Yellow
-    '#849b91', // Greyish Green
-    '#c2cedc', // Cool Grey/Blue
-    '#686789', // Cool Grey/Purple
+    // Morandi Series
+    '#E0C8C1', // Muted Pink
+    '#D89C7A', // Terracotta
+    '#D6C38B', // Mustard
+    '#849B91', // Sage
+    '#9FB1BC', // Blue Grey
+    '#686789', // Muted Purple
+    '#A8A29E', // Warm Grey
+    '#94A3B8', // Cool Grey
+
+    // Macaron Series
+    '#FFB7B2', // Melon
+    '#FFDAC1', // Peach
+    '#E2F0CB', // Mint
+    '#B5EAD7', // Aqua
+    '#C7CEEA', // Periwinkle
+    '#F8C8DC', // Pastel Pink
+    '#FDFD96', // Pastel Yellow
 ];
 
 interface GoalsSectionProps {

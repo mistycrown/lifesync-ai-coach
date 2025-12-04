@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { History, ChevronLeft, ChevronRight, FileText, Loader2, Save, Edit2, Trash2 } from 'lucide-react';
+import { History, ChevronLeft, ChevronRight, FileText, Loader2, Save, Edit2, Trash2, Clock } from 'lucide-react';
 import { Session, DailyReport, ThemeConfig, Task, Goal, Habit } from '../../types';
 import { CalendarPopover } from '../Calendar';
 import { TimePicker } from '../TimePicker';
@@ -98,7 +98,12 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
     // Filter sessions by date
     const filteredSessions = sessions.filter(s =>
         s.endTime !== null && new Date(s.startTime).toLocaleDateString() === new Date(logDate).toLocaleDateString()
-    ).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+    ).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+    const totalDurationMinutes = filteredSessions.reduce((acc, s) => {
+        if (!s.endTime) return acc;
+        return acc + Math.round((new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / 60000);
+    }, 0);
 
     const reportForSelectedDate = reports.find(r =>
         new Date(r.date).toDateString() === new Date(logDate).toDateString()
@@ -368,17 +373,52 @@ export const RecordsSection: React.FC<RecordsSectionProps> = ({
                 {reportForSelectedDate ? (
                     <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 cursor-pointer hover:shadow-md transition-all group" onClick={() => setViewingReportId(reportForSelectedDate.id)}>
                         <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-bold font-serif text-slate-800">{reportForSelectedDate.title}</h4>
+                            <h4 className="font-bold font-serif text-slate-800 text-lg">{reportForSelectedDate.title}</h4>
                             <div className="flex gap-1 transition-opacity">
                                 <button onClick={(e) => { e.stopPropagation(); onDeleteReport(reportForSelectedDate.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                             </div>
                         </div>
-                        <div className="text-sm text-slate-600 line-clamp-3 markdown-body">
-                            <ReactMarkdown>{reportForSelectedDate.content}</ReactMarkdown>
+
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className={`px-2.5 py-1 rounded-lg bg-${theme.primary}-100 text-${theme.primary}-700 text-xs font-bold flex items-center gap-1.5`}>
+                                <Clock size={12} />
+                                <span>专注 {Math.floor(totalDurationMinutes / 60)}小时{totalDurationMinutes % 60}分钟</span>
+                            </div>
                         </div>
-                        <div className="mt-3 text-xs text-slate-400 flex justify-between items-center">
+
+                        <div className="text-sm text-slate-600 line-clamp-3 leading-relaxed">
+                            {(() => {
+                                const content = reportForSelectedDate.content;
+                                const aiMarker = "💡 教练点评";
+                                const summaryMarker = "### 数据客观总结";
+
+                                let previewText = "";
+                                const aiIndex = content.indexOf(aiMarker);
+
+                                if (aiIndex !== -1) {
+                                    // Found AI section, take everything after it
+                                    previewText = content.substring(aiIndex + aiMarker.length).trim();
+                                } else {
+                                    // No AI section found, try to exclude data summary if present
+                                    const summaryIndex = content.indexOf(summaryMarker);
+                                    if (summaryIndex !== -1) {
+                                        // If summary is at the start, try to find where it ends (e.g. next H3 or end)
+                                        // This is a fallback, might just show raw content if structure is weird
+                                        previewText = content;
+                                    } else {
+                                        previewText = content;
+                                    }
+                                }
+
+                                // Clean up markdown
+                                previewText = previewText.replace(/[*#]/g, '').trim();
+                                return previewText.length > 150 ? previewText.substring(0, 150) + "..." : previewText;
+                            })()}
+                        </div>
+
+                        <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-400 flex justify-between items-center">
                             <span>{new Date(reportForSelectedDate.date).toLocaleString()}</span>
-                            <span className={`text-${theme.primary}-600 font-medium`}>点击查看详情</span>
+                            <span className={`text-${theme.primary}-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity`}>点击查看详情</span>
                         </div>
                     </div>
                 ) : (

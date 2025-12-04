@@ -228,8 +228,8 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
         // 使用 setTimeout 确保 DOM 渲染完成，高度已生效
         const timer = setTimeout(() => {
             if (containerRef.current) {
-                // 8 AM = 8 * 45 = 360px (总高度 1080px)
-                containerRef.current.scrollTop = 360;
+                // 9 AM = 9 * 45 = 405px (总高度 1080px)
+                containerRef.current.scrollTop = 405;
             }
         }, 200);
         return () => clearTimeout(timer);
@@ -240,7 +240,7 @@ export const WeeklyTimeline: React.FC<WeeklyTimelineProps> = ({
     const [tooltip, setTooltip] = useState<{ x: number, y: number, content: string } | null>(null);
 
     return (
-        <div className="flex flex-col h-[800px] border border-slate-200 rounded-xl overflow-hidden bg-white select-none relative">
+        <div className="flex flex-col h-[675px] border border-slate-200 rounded-xl overflow-hidden bg-white select-none relative">
             {/* Custom Tooltip */}
             {tooltip && (
                 <div

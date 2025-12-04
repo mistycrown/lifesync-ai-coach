@@ -7,6 +7,10 @@ export const THEMES: Record<string, ThemeConfig> = {
     rose: { name: '浪漫玫瑰', primary: 'rose', secondary: 'red', text: 'rose', bg: 'bg-rose-50/50' },
     amber: { name: '温暖夕阳', primary: 'amber', secondary: 'yellow', text: 'amber', bg: 'bg-amber-50/50' },
     slate: { name: '极简黑白', primary: 'slate', secondary: 'gray', text: 'slate', bg: 'bg-gray-50/50' },
+    paper: { name: '温暖纸张', primary: 'stone', secondary: 'orange', text: 'stone', bg: 'bg-[#f9f8f6]' },
+    matcha: { name: '清新抹茶', primary: 'lime', secondary: 'green', text: 'lime', bg: 'bg-lime-50/50' },
+    lavender: { name: '梦幻薰衣', primary: 'purple', secondary: 'fuchsia', text: 'purple', bg: 'bg-purple-50/50' },
+    midnight: { name: '午夜静谧', primary: 'neutral', secondary: 'slate', text: 'neutral', bg: 'bg-neutral-100' },
 };
 
 export const COACH_STYLES = [
